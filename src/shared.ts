@@ -1,4 +1,5 @@
-export type ContentKind = 'truck' | 'wheel' | 'other'
+export type ContentKind = 'truck' | 'trailer' | 'wheel' | 'other'
+export type ContentSource = 'bro' | 'pak'
 export type RecommendationLevel = 'low' | 'medium' | 'high'
 
 export interface RecommendedValues {
@@ -22,6 +23,7 @@ export interface EditableParameter {
 export interface ContentEntry {
   id: string
   kind: ContentKind
+  sourceType: ContentSource
   name: string
   internalName: string
   category: string

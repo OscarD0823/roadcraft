@@ -67,6 +67,10 @@
           <span>{{ t('vehicles') }}</span>
         </article>
         <article>
+          <strong>{{ countByKind('trailer') }}</strong>
+          <span>{{ t('trailers') }}</span>
+        </article>
+        <article>
           <strong>{{ countByKind('wheel') }}</strong>
           <span>{{ t('wheels') }}</span>
         </article>
@@ -110,11 +114,11 @@
             <div class="content-card__media">
               <img v-if="entry.imageUrl" :src="entry.imageUrl" :alt="entry.name">
               <div v-else class="vehicle-placeholder">
-                <span>{{ entry.kind === 'wheel' ? '◎' : '◰' }}</span>
-                <small>.BRO</small>
+                <span>{{ entry.kind === 'wheel' ? '◎' : entry.kind === 'trailer' ? '▰' : '◰' }}</span>
+                <small>{{ entry.sourceType === 'pak' ? '.CLS · PAK' : '.BRO' }}</small>
               </div>
               <span v-if="entry.modified" class="edited-badge">✎ {{ t('edited') }}</span>
-              <span class="kind-badge">{{ t(entry.kind === 'truck' ? 'truck' : entry.kind === 'wheel' ? 'wheel' : 'otherKind') }}</span>
+              <span class="kind-badge">{{ t(kindLabel(entry.kind)) }}</span>
             </div>
             <div class="content-card__body">
               <strong>{{ entry.name }}</strong>
@@ -137,7 +141,9 @@
 
         <div class="inspector__meta">
           <span>{{ selectedEntry.category }}</span>
-          <span :class="{ 'meta-edited': selectedEntry.modified }">{{ selectedEntry.modified ? t('edited') : '.bro' }}</span>
+          <span :class="{ 'meta-edited': selectedEntry.modified }">
+            {{ selectedEntry.modified ? t('edited') : selectedEntry.sourceType === 'pak' ? t('basePackage') : '.bro' }}
+          </span>
         </div>
 
         <div class="file-actions">
@@ -147,7 +153,7 @@
 
         <div class="safe-notice">
           <strong>🛡 {{ t('safeRange') }}</strong>
-          <span>{{ t('safeNotice') }}</span>
+          <span>{{ t(selectedEntry.sourceType === 'pak' ? 'pakSafeNotice' : 'safeNotice') }}</span>
         </div>
 
         <div v-if="selectedEntry.parameters.length === 0" class="no-parameters">
@@ -196,7 +202,7 @@
             {{ t('restore') }}
           </button>
           <button class="button button--primary" :disabled="saving" @click="saveChanges">
-            {{ saving ? '…' : t('save') }}
+            {{ saving ? t('saving') : t('save') }}
           </button>
         </div>
       </aside>
@@ -214,7 +220,7 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import type { ContentEntry, ContentKind, EditableParameter, ScanResult } from '../shared'
 import { locales, translate } from './i18n'
 
-type View = 'all' | 'truck' | 'wheel' | 'modified' | 'other'
+type View = 'all' | 'truck' | 'trailer' | 'wheel' | 'modified' | 'other'
 
 const iconUrl = new URL('../assets/app-icon.png', import.meta.url).href
 const locale = ref('es')
@@ -231,6 +237,7 @@ const selectedEntry = computed(() => scanResult.value?.entries.find(entry => ent
 const navigation = computed(() => [
   { value: 'all' as const, icon: '▦', label: t('all'), count: scanResult.value?.entries.length ?? 0 },
   { value: 'truck' as const, icon: '◰', label: t('vehicles'), count: countByKind('truck') },
+  { value: 'trailer' as const, icon: '▰', label: t('trailers'), count: countByKind('trailer') },
   { value: 'wheel' as const, icon: '◎', label: t('wheels'), count: countByKind('wheel') },
   { value: 'modified' as const, icon: '✎', label: t('modified'), count: scanResult.value?.entries.filter(entry => entry.modified).length ?? 0 },
   { value: 'other' as const, icon: '◇', label: t('other'), count: countByKind('other') }
@@ -328,7 +335,7 @@ async function restoreOriginal() {
   if (!selectedEntry.value) return
   saving.value = true
   try {
-    const result = await window.roadcraft.restore(selectedEntry.value.filePath)
+    const result = await window.roadcraft.restore(selectedEntry.value.id)
     if (!result.ok) throw new Error(result.message)
     await scan()
     showToast('success', t('successRestored'))
@@ -342,7 +349,7 @@ async function restoreOriginal() {
 async function chooseImage() {
   if (!selectedEntry.value) return
   try {
-    const imageUrl = await window.roadcraft.chooseImage(selectedEntry.value.filePath)
+    const imageUrl = await window.roadcraft.chooseImage(selectedEntry.value.id)
     if (imageUrl) selectedEntry.value.imageUrl = imageUrl
   } catch (error) {
     showError(error)
@@ -350,7 +357,7 @@ async function chooseImage() {
 }
 
 async function openFile() {
-  if (selectedEntry.value) await window.roadcraft.openFile(selectedEntry.value.filePath)
+  if (selectedEntry.value) await window.roadcraft.openFile(selectedEntry.value.id)
 }
 
 async function openSourceFolder() {
@@ -374,6 +381,13 @@ function formatTime(timestamp: number) {
 
 function round(value: number) {
   return Number(value.toFixed(4))
+}
+
+function kindLabel(kind: ContentKind) {
+  if (kind === 'truck') return 'truck'
+  if (kind === 'trailer') return 'trailer'
+  if (kind === 'wheel') return 'wheel'
+  return 'otherKind'
 }
 
 function showError(error: unknown) {
