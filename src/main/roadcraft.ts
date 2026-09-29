@@ -37,6 +37,8 @@ interface ParameterSpec {
   unit?: string
   factors?: [number, number, number]
   safeFactors?: [number, number]
+  absoluteRange?: [number, number]
+  linkedPaths?: string[][]
   options?: Array<{ value: string; labelKey: string }>
 }
 
@@ -183,15 +185,22 @@ const PAK_TRUCK_PARAMETERS: ParameterSpec[] = [
   },
   {
     id: 'dozerWidth', path: ['properties', 'prop_truck_flattener', 'flattener', 'size'], field: 'x',
-    labelKey: 'dozerWidth', groupKey: 'workEquipment', factors: [1.03, 1.06, 1.1], safeFactors: [0.9, 1.12]
+    labelKey: 'dozerWidth', groupKey: 'workEquipment', unit: 'm', factors: [1.5, 2.5, 4],
+    safeFactors: [0.9, 1.12], absoluteRange: [0.5, 20]
   },
   {
     id: 'rollerWidth', path: ['properties', 'prop_truck_asphalt_roller', 'asphaltRoller', 'size'], field: 'x',
-    labelKey: 'rollerWidth', groupKey: 'workEquipment', factors: [1.03, 1.06, 1.1], safeFactors: [0.9, 1.12]
+    labelKey: 'rollerWidth', groupKey: 'workEquipment', unit: 'm', factors: [1.5, 2.5, 4],
+    safeFactors: [0.9, 1.12], absoluteRange: [0.5, 20],
+    linkedPaths: [
+      ['properties', 'prop_truck_asphalt_roller', 'asphaltRoller', 'rollUpRearSize'],
+      ['properties', 'prop_truck_asphalt_roller', 'asphaltRoller', 'rollUpForwardSize']
+    ]
   },
   {
     id: 'paverWidth', path: ['properties', 'prop_truck_asphalter', 'asphalter', 'size'], field: 'x',
-    labelKey: 'paverWidth', groupKey: 'workEquipment', factors: [1.03, 1.06, 1.1], safeFactors: [0.9, 1.12]
+    labelKey: 'paverWidth', groupKey: 'workEquipment', unit: 'm', factors: [1.5, 2.5, 4],
+    safeFactors: [0.9, 1.12], absoluteRange: [0.5, 20]
   }
 ]
 
@@ -354,6 +363,7 @@ export class RoadCraftService {
 
         originalValues[parameterId] ??= parameter.original
         source = this.replaceParameterValue(source, spec, requestedValue)
+        source = this.replaceLinkedParameterValues(source, spec, requestedValue)
       }
 
       await this.writeItemSource(item, source)
@@ -376,7 +386,10 @@ export class RoadCraftService {
       let source = await this.readItemSource(item)
       for (const [parameterId, originalValue] of Object.entries(originalValues)) {
         const spec = item.specs.get(parameterId)
-        if (spec) source = this.replaceParameterValue(source, spec, originalValue)
+        if (spec) {
+          source = this.replaceParameterValue(source, spec, originalValue)
+          source = this.replaceLinkedParameterValues(source, spec, originalValue)
+        }
       }
 
       await this.writeItemSource(item, source)
@@ -652,10 +665,13 @@ export class RoadCraftService {
       }
 
       if (typeof original === 'number' && spec.factors && spec.safeFactors) {
-        const recommendations = spec.factors.map(factor => this.roundFor(original, original * factor)) as [number, number, number]
-        const safeValues = spec.safeFactors.map(factor => original * factor)
-        parameter.minimum = Math.min(...safeValues)
-        parameter.maximum = Math.max(...safeValues)
+        const [minimum, maximum] = spec.absoluteRange
+          ?? [Math.min(...spec.safeFactors.map(factor => original * factor)), Math.max(...spec.safeFactors.map(factor => original * factor))]
+        const recommendations = spec.factors.map(factor => (
+          this.roundFor(original, Math.min(maximum, Math.max(minimum, original * factor)))
+        )) as [number, number, number]
+        parameter.minimum = minimum
+        parameter.maximum = maximum
         parameter.recommended = {
           low: recommendations[0],
           medium: recommendations[1],
@@ -746,6 +762,16 @@ export class RoadCraftService {
 
     const updated = segment.replace(pattern, (_match, lineStart: string, prefix: string) => `${lineStart}${prefix}${replacement}`)
     return source.slice(0, range.start) + updated + source.slice(range.end)
+  }
+
+  private replaceLinkedParameterValues(source: string, spec: ParameterSpec, value: ParameterValue) {
+    for (const path of spec.linkedPaths ?? []) {
+      const linkedSpec: ParameterSpec = { ...spec, path, linkedPaths: undefined }
+      if (this.readParameterValue(source, linkedSpec) !== undefined) {
+        source = this.replaceParameterValue(source, linkedSpec, value)
+      }
+    }
+    return source
   }
 
   private isValidParameterValue(spec: ParameterSpec, value: ParameterValue) {

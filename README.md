@@ -1,5 +1,11 @@
 # RoadCraft Studio
 
+## Versión 0.4.1
+
+- Permite ampliar hasta 20 m el ancho funcional de pavimentadoras, rodillos y topadoras sin escalar el modelo visual.
+- Mantiene sincronizadas las zonas principal, trasera y delantera de trabajo de los rodillos.
+- Conserva el valor original y permite restaurarlo desde la interfaz.
+
 Editor visual, seguro y multilenguaje para vehículos, tráilers, llantas y partidas de RoadCraft.
 
 RoadCraft Studio detecta automáticamente la instalación ubicada en
