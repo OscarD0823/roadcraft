@@ -221,7 +221,7 @@
               </button>
             </div>
             <div v-if="parameter.minimum !== undefined && parameter.maximum !== undefined" class="range-label">
-              {{ t('safeRange') }}: {{ round(parameter.minimum) }} – {{ round(parameter.maximum) }}
+              {{ t('allowedRange') }}: {{ round(parameter.minimum) }} – {{ round(parameter.maximum) }}
             </div>
           </article>
         </div>

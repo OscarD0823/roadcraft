@@ -1,8 +1,8 @@
 # RoadCraft Studio
 
-## Versión 0.4.2
+## Versión 0.4.3
 
-- Permite ampliar hasta 20 m el ancho funcional de pavimentadoras, rodillos y topadoras sin escalar el modelo visual.
+- Permite configurar hasta 1.000 m el ancho funcional de pavimentadoras, rodillos, topadoras y volquetes sin escalar el modelo visual.
 - Mantiene sincronizadas las zonas principal, trasera y delantera de trabajo de los rodillos.
 - Conserva el valor original y permite restaurarlo desde la interfaz.
 - Añade controles específicos para la trituradora móvil Zikz 605E: restricción de terreno, radio de detección y distancia de funcionamiento.

@@ -27,7 +27,7 @@ interface StudioSettings {
   packageBackups: Record<string, PackageBackupState>
 }
 
-interface ParameterSpec {
+export interface ParameterSpec {
   id: string
   path: string[]
   field: string
@@ -40,6 +40,7 @@ interface ParameterSpec {
   absoluteRange?: [number, number]
   linkedPaths?: string[][]
   linkedParameters?: Array<{ path: string[]; field: string }>
+  displayScale?: number
   options?: Array<{ value: string; labelKey: string }>
 }
 
@@ -87,7 +88,7 @@ const BRO_TRUCK_PARAMETERS: ParameterSpec[] = [
   }
 ]
 
-const PAK_TRUCK_PARAMETERS: ParameterSpec[] = [
+export const PAK_TRUCK_PARAMETERS: ParameterSpec[] = [
   {
     id: 'engineTorque', path: ['properties', 'prop_truck_rb', 'engine', 'params'], field: 'torque',
     labelKey: 'engineTorque', groupKey: 'engine', unit: 'N·m', factors: [1.08, 1.18, 1.3], safeFactors: [0.7, 1.35]
@@ -187,12 +188,12 @@ const PAK_TRUCK_PARAMETERS: ParameterSpec[] = [
   {
     id: 'dozerWidth', path: ['properties', 'prop_truck_flattener', 'flattener', 'size'], field: 'x',
     labelKey: 'dozerWidth', groupKey: 'workEquipment', unit: 'm', factors: [1.5, 2.5, 4],
-    safeFactors: [0.9, 1.12], absoluteRange: [0.5, 20]
+    safeFactors: [0.9, 1.12], absoluteRange: [0.5, 1000]
   },
   {
     id: 'rollerWidth', path: ['properties', 'prop_truck_asphalt_roller', 'asphaltRoller', 'size'], field: 'x',
     labelKey: 'rollerWidth', groupKey: 'workEquipment', unit: 'm', factors: [1.5, 2.5, 4],
-    safeFactors: [0.9, 1.12], absoluteRange: [0.5, 20],
+    safeFactors: [0.9, 1.12], absoluteRange: [0.5, 1000],
     linkedPaths: [
       ['properties', 'prop_truck_asphalt_roller', 'asphaltRoller', 'rollUpRearSize'],
       ['properties', 'prop_truck_asphalt_roller', 'asphaltRoller', 'rollUpForwardSize']
@@ -201,7 +202,12 @@ const PAK_TRUCK_PARAMETERS: ParameterSpec[] = [
   {
     id: 'paverWidth', path: ['properties', 'prop_truck_asphalter', 'asphalter', 'size'], field: 'x',
     labelKey: 'paverWidth', groupKey: 'workEquipment', unit: 'm', factors: [1.5, 2.5, 4],
-    safeFactors: [0.9, 1.12], absoluteRange: [0.5, 20]
+    safeFactors: [0.9, 1.12], absoluteRange: [0.5, 1000]
+  },
+  {
+    id: 'dumpWorkWidth', path: ['properties', 'prop_road_plan_worker', 'loadVolumeSettings'], field: 'radius',
+    labelKey: 'dumpWorkWidth', groupKey: 'workEquipment', unit: 'm', factors: [1.5, 2.5, 4],
+    safeFactors: [0.9, 1.12], absoluteRange: [0.5, 1000], displayScale: 2
   },
   {
     id: 'sandAllowedPercent', path: ['properties', 'prop_truck_mobile_sand_screen'], field: 'allowedPercent',
@@ -743,7 +749,7 @@ export class RoadCraftService {
 
     if (kind === 'number') {
       const match = new RegExp(`(?:^|\\n)\\s*${field}\\s*=\\s*([-+]?\\d*\\.?\\d+(?:[eE][-+]?\\d+)?)`, 'm').exec(segment)
-      return match ? Number(match[1]) : undefined
+      return match ? Number(match[1]) * (spec.displayScale ?? 1) : undefined
     }
 
     if (kind === 'boolean') {
@@ -775,11 +781,14 @@ export class RoadCraftService {
     if (!pattern.test(segment)) throw new Error(`No se encontró el parámetro ${spec.field}.`)
 
     const currentRaw = pattern.exec(segment)?.[3] ?? ''
+    const storedValue = kind === 'number' && typeof value === 'number'
+      ? value / (spec.displayScale ?? 1)
+      : value
     const replacement = kind === 'select' && /^"/.test(currentRaw)
       ? `"${value}"`
       : kind === 'boolean' && /^[A-Z]/.test(currentRaw)
         ? value ? 'True' : 'False'
-        : String(value)
+        : String(storedValue)
 
     const updated = segment.replace(pattern, (_match, lineStart: string, prefix: string) => `${lineStart}${prefix}${replacement}`)
     return source.slice(0, range.start) + updated + source.slice(range.end)
