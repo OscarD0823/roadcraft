@@ -1,4 +1,4 @@
-import { app, dialog, nativeImage, shell } from 'electron'
+import { app, dialog, shell } from 'electron'
 import { copyFile, mkdir, readFile, readdir, rename, stat, unlink, writeFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import { basename, dirname, extname, join, relative, resolve, sep } from 'node:path'
@@ -9,6 +9,7 @@ import { promisify } from 'node:util'
 import type { ContentEntry, ContentKind, EditableParameter, OperationResult, ParameterKind, ParameterValue, SaveGameChanges, SaveGameData, SavePayload, SaveSlotSummary, ScanResult } from '../shared'
 import { applySaveGameChanges, createSaveGameData, decodeCompleteSave, encodeCompleteSave } from './save-game'
 import { readMatchingBinaryEntries, readMatchingTextEntries, replaceTextEntry, type TextArchiveEntry } from './zip-package'
+import { decodeRoadCraftShopTexture } from './shop-texture'
 
 interface PackageBackupState {
   backupPath: string
@@ -1029,7 +1030,7 @@ export class RoadCraftService {
     }
 
     const signature = createHash('sha256')
-      .update(`shop-textures-v2|${signatureParts.sort().join('|')}`)
+      .update(`shop-textures-v3-bc7|${signatureParts.sort().join('|')}`)
       .digest('hex')
     const cachedImages = await this.walkFiles(cacheRoot, COMPATIBLE_IMAGE_EXTENSIONS)
 
@@ -1045,6 +1046,7 @@ export class RoadCraftService {
           images = await readMatchingBinaryEntries(packagePath, entryName => {
             const extension = extname(entryName).toLowerCase()
             if (extension !== '.pct_mip' && !COMPATIBLE_IMAGE_EXTENSIONS.has(extension)) return false
+            if (extension === '.pct_mip' && !/_0\.pct_mip$/i.test(entryName)) return false
 
             const key = this.normalizeImageKey(basename(entryName, extension))
             return /ui_shop_/i.test(entryName)
@@ -1063,12 +1065,10 @@ export class RoadCraftService {
             .replace(/[^a-z0-9_-]/g, '_')
           const digest = createHash('sha1').update(image.entryName).digest('hex').slice(0, 10)
           const target = join(cacheRoot, `${key}-${digest}.${extension === '.pct_mip' ? 'png' : extension.slice(1)}`)
-          if (existsSync(target)) continue
-
           if (extension === '.pct_mip') {
-            const png = this.decodeShopTexture(image.content)
+            const png = decodeRoadCraftShopTexture(image.content)
             if (png) await writeFile(target, png)
-          } else if (this.hasSupportedImageSignature(image.content, extension)) {
+          } else if (!existsSync(target) && this.hasSupportedImageSignature(image.content, extension)) {
             await writeFile(target, image.content)
           }
         }
@@ -1147,113 +1147,6 @@ export class RoadCraftService {
     if (extension === '.jpg' || extension === '.jpeg') return content[0] === 0xff && content[1] === 0xd8
     if (extension === '.webp') return content.toString('ascii', 0, 4) === 'RIFF' && content.toString('ascii', 8, 12) === 'WEBP'
     return false
-  }
-
-  private decodeShopTexture(content: Buffer) {
-    const width = 368
-    const height = 308
-    const blockCount = Math.ceil(width / 4) * Math.ceil(height / 4)
-    const format = content.length === blockCount * 8
-      ? 'bc1'
-      : content.length === blockCount * 16
-        ? 'bc3'
-        : undefined
-    if (!format) return
-
-    const rgba = Buffer.alloc(width * height * 4)
-    const bytesPerBlock = format === 'bc1' ? 8 : 16
-    const blocksWide = Math.ceil(width / 4)
-    const blocksHigh = Math.ceil(height / 4)
-
-    for (let blockY = 0; blockY < blocksHigh; blockY++) {
-      for (let blockX = 0; blockX < blocksWide; blockX++) {
-        const offset = (blockY * blocksWide + blockX) * bytesPerBlock
-        const alpha = format === 'bc3'
-          ? this.decodeBc3Alpha(content, offset)
-          : undefined
-        const colorOffset = offset + (format === 'bc3' ? 8 : 0)
-        const colors = this.decodeBcColors(content, colorOffset, format === 'bc1')
-        const colorBits = content.readUInt32LE(colorOffset + 4)
-
-        for (let pixel = 0; pixel < 16; pixel++) {
-          const x = blockX * 4 + (pixel % 4)
-          const y = blockY * 4 + Math.floor(pixel / 4)
-          if (x >= width || y >= height) continue
-
-          const color = colors[(colorBits >>> (pixel * 2)) & 0x3]
-          const target = (y * width + x) * 4
-          rgba[target] = color[0]
-          rgba[target + 1] = color[1]
-          rgba[target + 2] = color[2]
-          rgba[target + 3] = alpha?.[pixel] ?? color[3]
-        }
-      }
-    }
-
-    // Electron recibe los mapas de bits en orden BGRA en Windows.
-    for (let index = 0; index < rgba.length; index += 4) {
-      const red = rgba[index]
-      rgba[index] = rgba[index + 2]
-      rgba[index + 2] = red
-    }
-    return nativeImage.createFromBitmap(rgba, { width, height }).toPNG()
-  }
-
-  private decodeBcColors(content: Buffer, offset: number, allowTransparent: boolean) {
-    const color0 = content.readUInt16LE(offset)
-    const color1 = content.readUInt16LE(offset + 2)
-    const first = this.rgb565(color0)
-    const second = this.rgb565(color1)
-    const colors: Array<[number, number, number, number]> = [
-      [...first, 255],
-      [...second, 255],
-      [0, 0, 0, 255],
-      [0, 0, 0, 255]
-    ]
-
-    if (color0 > color1 || !allowTransparent) {
-      colors[2] = first.map((value, index) => Math.round((2 * value + second[index]) / 3)).concat(255) as [number, number, number, number]
-      colors[3] = first.map((value, index) => Math.round((value + 2 * second[index]) / 3)).concat(255) as [number, number, number, number]
-    } else {
-      colors[2] = first.map((value, index) => Math.round((value + second[index]) / 2)).concat(255) as [number, number, number, number]
-      colors[3] = [0, 0, 0, 0]
-    }
-    return colors
-  }
-
-  private decodeBc3Alpha(content: Buffer, offset: number) {
-    const alpha0 = content[offset]
-    const alpha1 = content[offset + 1]
-    const table = [alpha0, alpha1, 0, 0, 0, 0, 0, 0]
-
-    if (alpha0 > alpha1) {
-      for (let index = 1; index <= 6; index++) {
-        table[index + 1] = Math.round(((7 - index) * alpha0 + index * alpha1) / 7)
-      }
-    } else {
-      for (let index = 1; index <= 4; index++) {
-        table[index + 1] = Math.round(((5 - index) * alpha0 + index * alpha1) / 5)
-      }
-      table[6] = 0
-      table[7] = 255
-    }
-
-    let bits = 0n
-    for (let index = 0; index < 6; index++) {
-      bits |= BigInt(content[offset + 2 + index]) << BigInt(index * 8)
-    }
-    return Array.from({ length: 16 }, (_, index) => table[Number((bits >> BigInt(index * 3)) & 0x7n)])
-  }
-
-  private rgb565(value: number): [number, number, number] {
-    const red = (value >> 11) & 0x1f
-    const green = (value >> 5) & 0x3f
-    const blue = value & 0x1f
-    return [
-      Math.round(red * 255 / 31),
-      Math.round(green * 255 / 63),
-      Math.round(blue * 255 / 31)
-    ]
   }
 
   private humanize(value: string) {

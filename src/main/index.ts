@@ -69,8 +69,8 @@ async function createWindow() {
   const window = new BrowserWindow({
     width: 1280,
     height: 800,
-    minWidth: 940,
-    minHeight: 650,
+    minWidth: 600,
+    minHeight: 520,
     show: false,
     backgroundColor: '#0b1220',
     title: 'RoadCraft Studio',

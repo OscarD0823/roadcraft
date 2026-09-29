@@ -356,7 +356,7 @@ button { cursor: pointer; }
       linear-gradient(135deg, rgba(22, 163, 148, 0.1), transparent 55%),
       linear-gradient(180deg, #eaf0f3, #dfe8ec);
 
-    > img { width: 100%; height: 100%; object-fit: cover; }
+    > img { width: 100%; height: 100%; object-fit: contain; background: #dfe7eb; }
   }
 
   &__body {
@@ -834,4 +834,41 @@ button { cursor: pointer; }
   .main-shell--inspector { grid-template-columns: minmax(360px, 1fr) 380px; }
   .content-grid { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
   .workspace-nav .nav-button { padding-inline: 9px; }
+}
+
+@media (max-width: 760px) {
+  .topbar { min-height: 56px; padding-inline: 12px; }
+  .brand__icon { width: 36px; height: 36px; }
+  .workspace-nav { min-height: 52px; padding-block: 6px; }
+  .workspace-nav__tools .tool-button { display: none; }
+  .workspace-nav__tools .button { min-width: 38px; padding-inline: 10px; font-size: 0; }
+  .workspace-nav__tools .button span { font-size: 15px; }
+  .primary-nav { flex: 1; }
+  .nav-button { flex: 0 0 auto; padding-inline: 8px; }
+  .toolbar { min-height: 52px; padding-inline: 12px; }
+  .search-box { width: min(320px, 64%); }
+  .scan-time { display: none; }
+  .content-grid { grid-template-columns: repeat(auto-fill, minmax(165px, 1fr)); gap: 10px; padding: 12px; }
+  .content-card__media { height: 116px; }
+
+  .main-shell { position: relative; }
+  .main-shell--inspector { grid-template-columns: minmax(0, 1fr); }
+  .main-shell--inspector .inspector {
+    position: absolute;
+    z-index: 30;
+    inset-block: 0;
+    inset-inline-end: 0;
+    width: min(100%, 430px);
+  }
+
+  .save-hero { align-items: flex-start; padding: 15px 14px; flex-direction: column; gap: 11px; }
+  .save-hero h1 { font-size: 21px; }
+  .save-shell { grid-template-columns: 1fr; grid-template-rows: minmax(130px, 34%) minmax(0, 1fr); }
+  .save-slots { border-inline-end: 0; border-bottom: 1px solid var(--border); }
+  .save-editor__header { padding-inline: 14px; }
+  .save-tabs { padding-inline: 12px; overflow-x: auto; }
+  .save-stats-panel,
+  .save-list-panel { padding: 14px 12px 22px; }
+  .stat-form-grid { grid-template-columns: 1fr; }
+  .stat-form-grid__wide { grid-column: auto; }
 }
