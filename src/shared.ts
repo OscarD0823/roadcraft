@@ -56,6 +56,57 @@ export interface SavePayload {
 export interface OperationResult {
   ok: boolean
   message?: string
+  backupPath?: string
+}
+
+export interface SaveSlotSummary {
+  filePath: string
+  slotName: string
+  profileId: string
+  modifiedAt: number
+  size: number
+}
+
+export interface SaveTruckState {
+  id: string
+  unlocked: boolean
+}
+
+export interface SaveMapResources {
+  logs: number
+  steelBeams: number
+  concreteSlabs: number
+  steelPipes: number
+}
+
+export interface SaveMapState {
+  id: string
+  unlocked: boolean
+  completed: boolean
+  progress: number
+  recoveryCoins: number
+  resources: SaveMapResources
+}
+
+export interface SaveGameData {
+  filePath: string
+  slotName: string
+  profileId: string
+  modifiedAt: number
+  money: number
+  xp: number
+  companyName: string
+  trucks: SaveTruckState[]
+  maps: SaveMapState[]
+}
+
+export interface SaveGameChanges {
+  filePath: string
+  money: number
+  xp: number
+  companyName: string
+  trucks: SaveTruckState[]
+  maps: SaveMapState[]
 }
 
 export interface RoadCraftApi {
@@ -69,4 +120,8 @@ export interface RoadCraftApi {
   openSourceFolder(): Promise<void>
   launchModEditor(): Promise<OperationResult>
   setLocale(locale: string): Promise<void>
+  findSaveGames(): Promise<SaveSlotSummary[]>
+  chooseSaveGame(): Promise<SaveGameData | undefined>
+  readSaveGame(filePath: string): Promise<SaveGameData>
+  writeSaveGame(changes: SaveGameChanges): Promise<OperationResult>
 }

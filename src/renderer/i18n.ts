@@ -43,7 +43,19 @@ const en: Record<string, string> = {
   dozerWidth: 'Dozer working width', rollerWidth: 'Roller working width', paverWidth: 'Paver working width', wheelRadiusOffset: 'Wheel radius offset', rimRadius: 'Rim radius',
   lastScan: 'Last scan', modificationsOnly: 'Edited only', libraryHelp: 'RoadCraft Studio reads base .cls vehicles from default_other.pak and also supports official .bro mod sources.',
   safeNotice: 'Low, medium and high presets stay inside conservative limits. A backup is created before every save.',
-  pakSafeNotice: 'This vehicle is inside default_other.pak. Close RoadCraft before saving; a full package backup is created and its cache is safely invalidated.'
+  pakSafeNotice: 'This vehicle is inside default_other.pak. Close RoadCraft before saving; a full package backup is created and its cache is safely invalidated.',
+  saveGames: 'Save games', saveGamesHelp: 'Edit your CompleteSave safely: player stats, unlocked trucks, maps and stored resources.',
+  findSaveGames: 'Find save games', openSaveFile: 'Open CompleteSave', detectedSaveGames: 'Detected save games', profile: 'Profile',
+  noSaveGames: 'No save games were detected', manualSaveHelp: 'You can select the CompleteSave file manually.', chooseCompleteSave: 'Choose CompleteSave',
+  loadingSaveGame: 'Reading and validating the save game...', selectSaveGame: 'Select a save game', saveSelectionHelp: 'Choose a detected slot or open CompleteSave manually.', unnamedCompany: 'Unnamed company',
+  unlockedTrucks: 'unlocked trucks', unlockedMaps: 'unlocked maps', playerStats: 'Player', saveTrucks: 'Trucks', mapsResources: 'Maps and resources',
+  automaticBackup: 'Automatic verified backup', automaticBackupHelp: 'The original CompleteSave is copied before writing, and the new file is validated before replacement.',
+  money: 'Money', experience: 'Experience (XP)', companyName: 'Company name', searchTruckInSave: 'Search truck in this save...',
+  lockAll: 'Lock all', unlockAll: 'Unlock all', unlocked: 'Unlocked', locked: 'Locked', noTrucksInSave: 'This save does not list any trucks yet.',
+  mapsResourcesHelp: 'Progress and resources found in this save', resetProgress: 'Set all to 0%', completeAll: 'Complete all', map: 'Map', completed: 'Completed', progress: 'Progress %',
+  fuelCoins: 'Fuel', logs: 'Logs', steelBeams: 'Steel beams', concreteSlabs: 'Concrete slabs', steelPipes: 'Steel pipes',
+  closeGameBeforeSaving: 'RoadCraft must be closed. Unknown save fields are preserved.', savingSaveGame: 'Saving save game…', saveGameChanges: 'Save CompleteSave changes',
+  saveGameSaved: 'Save game updated and verified. A backup was created beside CompleteSave.', manualFile: 'manual file'
 }
 
 const es: Record<string, string> = {
@@ -75,7 +87,19 @@ const es: Record<string, string> = {
   lastScan: 'Último análisis', modificationsOnly: 'Solo modificados',
   libraryHelp: 'RoadCraft Studio lee los vehículos .cls del archivo default_other.pak y también admite las fuentes oficiales .bro de mods.',
   safeNotice: 'Los niveles poco, medio y alto permanecen dentro de límites conservadores. Se crea una copia antes de cada guardado.',
-  pakSafeNotice: 'Este vehículo está dentro de default_other.pak. Cierra RoadCraft antes de guardar; se crea una copia completa del paquete y se invalida su caché de forma segura.'
+  pakSafeNotice: 'Este vehículo está dentro de default_other.pak. Cierra RoadCraft antes de guardar; se crea una copia completa del paquete y se invalida su caché de forma segura.',
+  saveGames: 'Partidas', saveGamesHelp: 'Edita CompleteSave de forma segura: estadísticas, camiones desbloqueados, mapas y recursos almacenados.',
+  findSaveGames: 'Buscar partidas', openSaveFile: 'Abrir CompleteSave', detectedSaveGames: 'Partidas detectadas', profile: 'Perfil',
+  noSaveGames: 'No se detectaron partidas', manualSaveHelp: 'Puedes seleccionar manualmente el archivo CompleteSave.', chooseCompleteSave: 'Elegir CompleteSave',
+  loadingSaveGame: 'Leyendo y validando la partida...', selectSaveGame: 'Selecciona una partida', saveSelectionHelp: 'Elige una ranura detectada o abre CompleteSave manualmente.', unnamedCompany: 'Empresa sin nombre',
+  unlockedTrucks: 'camiones desbloqueados', unlockedMaps: 'mapas desbloqueados', playerStats: 'Jugador', saveTrucks: 'Camiones', mapsResources: 'Mapas y recursos',
+  automaticBackup: 'Copia automática verificada', automaticBackupHelp: 'Se copia el CompleteSave original y se valida el archivo nuevo antes de reemplazarlo.',
+  money: 'Dinero', experience: 'Experiencia (XP)', companyName: 'Nombre de la empresa', searchTruckInSave: 'Buscar camión en esta partida...',
+  lockAll: 'Bloquear todos', unlockAll: 'Desbloquear todos', unlocked: 'Desbloqueado', locked: 'Bloqueado', noTrucksInSave: 'Esta partida todavía no contiene una lista de camiones.',
+  mapsResourcesHelp: 'Progreso y recursos encontrados en esta partida', resetProgress: 'Todo a 0%', completeAll: 'Completar todo', map: 'Mapa', completed: 'Completado', progress: 'Progreso %',
+  fuelCoins: 'Combustible', logs: 'Troncos', steelBeams: 'Vigas de acero', concreteSlabs: 'Losas de concreto', steelPipes: 'Tuberías de acero',
+  closeGameBeforeSaving: 'RoadCraft debe estar cerrado. Los campos desconocidos se conservan.', savingSaveGame: 'Guardando partida…', saveGameChanges: 'Guardar cambios en CompleteSave',
+  saveGameSaved: 'Partida actualizada y verificada. Se creó una copia junto a CompleteSave.', manualFile: 'archivo manual'
 }
 
 const primaryOverrides: Record<string, Record<string, string>> = {

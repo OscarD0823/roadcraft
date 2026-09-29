@@ -3,7 +3,7 @@ import squirrelStartup from 'electron-squirrel-startup'
 import { UpdateSourceType, updateElectronApp } from 'update-electron-app'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import type { SavePayload } from '../shared'
+import type { SaveGameChanges, SavePayload } from '../shared'
 import { RoadCraftService } from './roadcraft'
 
 const currentDir = dirname(fileURLToPath(import.meta.url))
@@ -59,6 +59,10 @@ function registerHandlers(service: RoadCraftService) {
   ipcMain.handle('roadcraft:open-source-folder', () => service.openSourceFolder())
   ipcMain.handle('roadcraft:launch-mod-editor', () => service.launchModEditor())
   ipcMain.handle('roadcraft:set-locale', (_event, locale: string) => service.setLocale(locale))
+  ipcMain.handle('roadcraft:find-save-games', () => service.findSaveGames())
+  ipcMain.handle('roadcraft:choose-save-game', () => service.chooseSaveGame())
+  ipcMain.handle('roadcraft:read-save-game', (_event, filePath: string) => service.readSaveGame(filePath))
+  ipcMain.handle('roadcraft:write-save-game', (_event, changes: SaveGameChanges) => service.writeSaveGame(changes))
 }
 
 async function createWindow() {

@@ -1,8 +1,8 @@
 {
   "name": "roadcraft-studio",
   "productName": "RoadCraft Studio",
-  "version": "0.3.0",
-  "description": "Editor visual y seguro para vehículos, tráilers y llantas de RoadCraft.",
+  "version": "0.4.0",
+  "description": "Editor visual y seguro para vehículos, tráilers, llantas y partidas de RoadCraft.",
   "main": ".vite/build/index.js",
   "author": {
     "name": "OscarD0823"
@@ -18,7 +18,8 @@
   "scripts": {
     "start": "electron-forge start",
     "check": "tsc --noEmit && vue-tsc --noEmit",
-    "test": "tsx scripts/test-zip-package.ts",
+    "test": "tsx scripts/test-zip-package.ts && tsx scripts/test-save-game.ts",
+    "test:save": "tsx scripts/test-save-game.ts",
     "test:full-package": "tsx scripts/test-full-package.ts",
     "package": "electron-forge package --platform=win32 --arch=x64",
     "make": "cross-env NODE_ENV=production electron-forge make --platform=win32 --arch=x64",

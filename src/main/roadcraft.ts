@@ -1,12 +1,13 @@
 import { app, dialog, nativeImage, shell } from 'electron'
-import { copyFile, mkdir, readFile, readdir, stat, unlink, writeFile } from 'node:fs/promises'
+import { copyFile, mkdir, readFile, readdir, rename, stat, unlink, writeFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import { basename, dirname, extname, join, relative, resolve, sep } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { execFile, spawn } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { promisify } from 'node:util'
-import type { ContentEntry, ContentKind, EditableParameter, OperationResult, ParameterKind, ParameterValue, SavePayload, ScanResult } from '../shared'
+import type { ContentEntry, ContentKind, EditableParameter, OperationResult, ParameterKind, ParameterValue, SaveGameChanges, SaveGameData, SavePayload, SaveSlotSummary, ScanResult } from '../shared'
+import { applySaveGameChanges, createSaveGameData, decodeCompleteSave, encodeCompleteSave } from './save-game'
 import { readMatchingBinaryEntries, readMatchingTextEntries, replaceTextEntry, type TextArchiveEntry } from './zip-package'
 
 interface PackageBackupState {
@@ -231,6 +232,7 @@ export class RoadCraftService {
     packageBackups: {}
   }
   private catalog = new Map<string, CatalogItem>()
+  private readonly trustedSavePaths = new Set<string>()
 
   async init() {
     try {
@@ -429,6 +431,112 @@ export class RoadCraftService {
       return { ok: true }
     } catch (error) {
       return { ok: false, message: error instanceof Error ? error.message : String(error) }
+    }
+  }
+
+  async findSaveGames(): Promise<SaveSlotSummary[]> {
+    const localAppData = process.env.LOCALAPPDATA ?? join(app.getPath('home'), 'AppData', 'Local')
+    const candidateRoots = [join(localAppData, 'Saber'), join(localAppData, 'Saber Interactive')]
+    const files = [...new Set((await Promise.all(candidateRoots.map(root => this.findCompleteSaveFiles(root, 10)))).flat())]
+    const slots: SaveSlotSummary[] = []
+
+    for (const filePath of files) {
+      try {
+        const fileStats = await stat(filePath)
+        const normalized = resolve(filePath)
+        this.trustedSavePaths.add(normalized.toLowerCase())
+        slots.push({
+          filePath: normalized,
+          slotName: basename(dirname(normalized)),
+          profileId: basename(dirname(dirname(dirname(dirname(normalized))))),
+          modifiedAt: fileStats.mtimeMs,
+          size: fileStats.size
+        })
+      } catch {
+        // A cloud sync can remove a slot while it is being enumerated.
+      }
+    }
+
+    return slots.sort((a, b) => b.modifiedAt - a.modifiedAt)
+  }
+
+  async chooseSaveGame(): Promise<SaveGameData | undefined> {
+    const localAppData = process.env.LOCALAPPDATA ?? join(app.getPath('home'), 'AppData', 'Local')
+    const result = await dialog.showOpenDialog({
+      title: 'Seleccionar CompleteSave de RoadCraft',
+      defaultPath: join(localAppData, 'Saber'),
+      properties: ['openFile']
+    })
+    if (result.canceled || !result.filePaths[0]) return
+    const filePath = resolve(result.filePaths[0])
+    if (basename(filePath).toLowerCase() !== 'completesave') {
+      throw new Error('Selecciona el archivo llamado CompleteSave dentro de una carpeta SLOT_.')
+    }
+    this.trustedSavePaths.add(filePath.toLowerCase())
+    try {
+      return await this.readSaveGame(filePath)
+    } catch (error) {
+      this.trustedSavePaths.delete(filePath.toLowerCase())
+      throw error
+    }
+  }
+
+  async readSaveGame(filePath: string): Promise<SaveGameData> {
+    const normalized = resolve(filePath)
+    if (basename(normalized).toLowerCase() !== 'completesave') {
+      throw new Error('El archivo elegido no se llama CompleteSave.')
+    }
+    if (!this.trustedSavePaths.has(normalized.toLowerCase())) {
+      const discovered = await this.findSaveGames()
+      if (!discovered.some(item => item.filePath.toLowerCase() === normalized.toLowerCase())) {
+        throw new Error('Vuelve a buscar las partidas o selecciónala manualmente.')
+      }
+    }
+    const [content, fileStats] = await Promise.all([readFile(normalized), stat(normalized)])
+    const decoded = decodeCompleteSave(content)
+    return createSaveGameData(decoded, {
+      filePath: normalized,
+      slotName: basename(dirname(normalized)),
+      profileId: basename(dirname(dirname(dirname(dirname(normalized))))),
+      modifiedAt: fileStats.mtimeMs
+    })
+  }
+
+  async writeSaveGame(changes: SaveGameChanges): Promise<OperationResult> {
+    const filePath = resolve(changes.filePath)
+    const trustedKey = filePath.toLowerCase()
+    let backupPath: string | undefined
+    const temporaryPath = join(dirname(filePath), `.CompleteSave.roadcraft-studio-${process.pid}.tmp`)
+
+    try {
+      if (basename(filePath).toLowerCase() !== 'completesave' || !this.trustedSavePaths.has(trustedKey)) {
+        throw new Error('La partida debe abrirse desde RoadCraft Studio antes de guardarla.')
+      }
+      await this.assertGameIsClosed()
+      const decoded = decodeCompleteSave(await readFile(filePath))
+      const document = applySaveGameChanges(decoded, changes)
+      const encoded = encodeCompleteSave(decoded, document)
+      decodeCompleteSave(encoded)
+
+      const timestamp = new Date().toISOString().replaceAll(':', '-').replaceAll('.', '-')
+      backupPath = join(dirname(filePath), `CompleteSave.roadcraft-studio-${timestamp}.bak`)
+      await copyFile(filePath, backupPath)
+      await writeFile(temporaryPath, encoded)
+      decodeCompleteSave(await readFile(temporaryPath))
+      await rename(temporaryPath, filePath)
+      decodeCompleteSave(await readFile(filePath))
+      return { ok: true, backupPath }
+    } catch (error) {
+      if (backupPath && existsSync(backupPath)) {
+        try {
+          decodeCompleteSave(await readFile(filePath))
+        } catch {
+          await copyFile(backupPath, filePath)
+        }
+      }
+      return { ok: false, message: error instanceof Error ? error.message : String(error), backupPath }
+    } finally {
+      if (existsSync(temporaryPath)) await unlink(temporaryPath).catch(() => undefined)
     }
   }
 
@@ -728,9 +836,26 @@ export class RoadCraftService {
       windowsHide: true,
       encoding: 'utf8'
     })
-    if (/"Roadcraft(?: - Retail)?\.exe"/i.test(stdout)) {
-      throw new Error('Cierra RoadCraft antes de guardar cambios en default_other.pak.')
+    if (/"(?:RoadCraft(?: - Retail)?|RoadCraft-Win64-Shipping)\.exe"/i.test(stdout)) {
+      throw new Error('Cierra RoadCraft antes de guardar cambios.')
     }
+  }
+
+  private async findCompleteSaveFiles(root: string, remainingDepth: number): Promise<string[]> {
+    if (remainingDepth < 0 || !existsSync(root)) return []
+    const files: string[] = []
+    let entries
+    try {
+      entries = await readdir(root, { withFileTypes: true })
+    } catch {
+      return []
+    }
+    for (const entry of entries) {
+      const fullPath = join(root, entry.name)
+      if (entry.isFile() && entry.name.toLowerCase() === 'completesave') files.push(fullPath)
+      else if (entry.isDirectory()) files.push(...await this.findCompleteSaveFiles(fullPath, remainingDepth - 1))
+    }
+    return files
   }
 
   private async fileSignature(filePath: string) {

@@ -1,6 +1,6 @@
 # RoadCraft Studio
 
-Editor visual, seguro y multilenguaje para vehículos, tráilers y llantas de RoadCraft.
+Editor visual, seguro y multilenguaje para vehículos, tráilers, llantas y partidas de RoadCraft.
 
 RoadCraft Studio detecta automáticamente la instalación ubicada en
 `E:\SteamLibrary\steamapps\common\RoadCraft`, analiza recursivamente los archivos fuente
@@ -26,6 +26,12 @@ parámetros seleccionados sin salir de límites conservadores.
 - Interfaz disponible en los 15 idiomas compatibles con RoadCraft; español e inglés
   incluyen la traducción completa y el resto usan traducciones principales con respaldo en inglés.
 - Actualización automática mediante las versiones publicadas en GitHub.
+- Editor independiente de partidas `CompleteSave`: dinero, experiencia, empresa, camiones
+  bloqueados/desbloqueados, mapas, progreso, combustible y recursos.
+- Detección automática de perfiles y ranuras de Steam, además de selección manual de
+  `CompleteSave` para ubicaciones no estándar.
+- Lectura y escritura verificada de todos los bloques zlib y de la firma MD5 de la partida;
+  los campos desconocidos se conservan para mantener compatibilidad con actualizaciones y mods.
 
 ## Uso seguro
 
@@ -43,6 +49,10 @@ paquete. También continúa trabajando con las fuentes oficiales `.bro` de mods.
 
 Las copias se guardan dentro de los datos locales de la aplicación, en la carpeta
 `backups` de RoadCraft Studio.
+
+Al modificar una partida, la copia se guarda junto al archivo original con el nombre
+`CompleteSave.roadcraft-studio-<fecha>.bak`. El archivo nuevo se valida antes de reemplazar
+la partida. RoadCraft también debe estar cerrado durante este proceso.
 
 ## Desarrollo
 

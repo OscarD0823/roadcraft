@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { RoadCraftApi, SavePayload } from './shared'
+import type { RoadCraftApi, SaveGameChanges, SavePayload } from './shared'
 
 const api: RoadCraftApi = {
   getSettings: () => ipcRenderer.invoke('roadcraft:get-settings'),
@@ -11,7 +11,11 @@ const api: RoadCraftApi = {
   openFile: (filePath: string) => ipcRenderer.invoke('roadcraft:open-file', filePath),
   openSourceFolder: () => ipcRenderer.invoke('roadcraft:open-source-folder'),
   launchModEditor: () => ipcRenderer.invoke('roadcraft:launch-mod-editor'),
-  setLocale: (locale: string) => ipcRenderer.invoke('roadcraft:set-locale', locale)
+  setLocale: (locale: string) => ipcRenderer.invoke('roadcraft:set-locale', locale),
+  findSaveGames: () => ipcRenderer.invoke('roadcraft:find-save-games'),
+  chooseSaveGame: () => ipcRenderer.invoke('roadcraft:choose-save-game'),
+  readSaveGame: (filePath: string) => ipcRenderer.invoke('roadcraft:read-save-game', filePath),
+  writeSaveGame: (changes: SaveGameChanges) => ipcRenderer.invoke('roadcraft:write-save-game', changes)
 }
 
 contextBridge.exposeInMainWorld('roadcraft', api)
