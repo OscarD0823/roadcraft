@@ -296,7 +296,8 @@ export class RoadCraftService {
   getSettings() {
     return {
       installPath: this.settings.installPath,
-      locale: this.settings.locale
+      locale: this.settings.locale,
+      version: app.getVersion()
     }
   }
 
@@ -584,17 +585,29 @@ export class RoadCraftService {
     const source = await readFile(filePath, 'utf8')
     const id = resolve(filePath)
     const folder = basename(dirname(filePath)).toLowerCase()
-    const kind: ContentKind = folder === 'trucks' ? 'truck' : folder === 'wheels' ? 'wheel' : 'other'
-    const specs = kind === 'truck' ? BRO_TRUCK_PARAMETERS : kind === 'wheel' ? WHEEL_PARAMETERS : []
+    const internalName = this.readStringValue(source, ['chassisInfo'], 'name')
+      ?? this.readStringValue(source, [], 'tpl')
+      ?? basename(filePath, extname(filePath))
+    const rawCategory = this.readStringValue(source, ['uiInfo'], 'uiType') ?? folder
+    const kind: ContentKind = /(?:^|_)ai(?:_|$)/i.test(internalName) || folder === 'ai'
+      ? 'ai'
+      : folder === 'wheels'
+        ? 'wheel'
+        : /trailer|semitruck/i.test(`${folder} ${rawCategory}`)
+          ? 'trailer'
+          : folder === 'trucks'
+            ? 'truck'
+            : 'other'
+    const specs = kind === 'truck' || kind === 'trailer' || kind === 'ai'
+      ? BRO_TRUCK_PARAMETERS
+      : kind === 'wheel'
+        ? WHEEL_PARAMETERS
+        : []
     const { parameters, specMap } = this.createParameters(source, specs, id)
     const uiName = this.readStringValue(source, ['chassisInfo'], 'uiName')
       ?? this.readStringValue(source, ['uiInfo'], 'uiName')
       ?? this.readStringValue(source, [], 'tpl')
       ?? basename(filePath, extname(filePath))
-    const internalName = this.readStringValue(source, ['chassisInfo'], 'name')
-      ?? this.readStringValue(source, [], 'tpl')
-      ?? basename(filePath, extname(filePath))
-    const rawCategory = this.readStringValue(source, ['uiInfo'], 'uiType') ?? kind
     const shopIconReference = this.readStringValue(source, ['chassisInfo'], 'uiCustomShopIcon')
       ?? this.readStringValue(source, ['uiInfo'], 'uiCustomIcon')
     const fileStats = await stat(filePath)
@@ -631,7 +644,11 @@ export class RoadCraftService {
     const stem = basename(archived.entryName, '.cls')
     const id = `pak:${resolve(packagePath)}::${archived.entryName}`
     const lowerName = stem.toLowerCase()
-    const kind: ContentKind = /(?:^|_)(?:semi)?trailer(?:_|$)/i.test(lowerName) ? 'trailer' : 'truck'
+    const moduleTag = this.readStringValue(archived.content, [], 'tag') ?? ''
+    const isAi = /(?:^|_)ai(?:_|$)/i.test(lowerName)
+    const isTrailer = /^UID_MODULE_SEMITRUCK_(?:TRAILER|FUEL)$/i.test(moduleTag)
+      || (/wayfarer/i.test(lowerName) && /(?:semi)?trailer|cargo_main/i.test(lowerName))
+    const kind: ContentKind = isAi ? 'ai' : isTrailer ? 'trailer' : 'truck'
     const { parameters, specMap } = this.createParameters(archived.content, PAK_TRUCK_PARAMETERS, id)
     const truckType = this.readStringValue(archived.content, ['properties', 'prop_truck_view'], 'truckType') ?? kind
     const customImage = this.settings.customImages[id]
@@ -653,7 +670,7 @@ export class RoadCraftService {
         sourceType: 'pak',
         name: this.humanize(stem.replace(/^auto_/, '')),
         internalName: stem,
-        category: this.humanize(truckType),
+        category: this.humanize(moduleTag.replace(/^UID_MODULE_/, '') || truckType),
         filePath: resolve(packagePath),
         relativePath: `default_other.pak › ${archived.entryName}`,
         modified: Boolean(this.settings.originalValues[id]),

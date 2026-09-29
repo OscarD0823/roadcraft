@@ -1,11 +1,12 @@
 # RoadCraft Studio
 
-## Versión 0.4.3
+## Versión 0.5.0
 
 - Permite configurar hasta 1.000 m el ancho funcional de pavimentadoras, rodillos, topadoras y volquetes sin escalar el modelo visual.
 - Mantiene sincronizadas las zonas principal, trasera y delantera de trabajo de los rodillos.
 - Conserva el valor original y permite restaurarlo desde la interfaz.
 - Añade controles específicos para la trituradora móvil Zikz 605E: restricción de terreno, radio de detección y distancia de funcionamiento.
+- Rediseña la navegación, separa las unidades exclusivas de IA y clasifica los tráilers mediante las etiquetas internas del juego.
 
 Editor visual, seguro y multilenguaje para vehículos, tráilers, llantas y partidas de RoadCraft.
 

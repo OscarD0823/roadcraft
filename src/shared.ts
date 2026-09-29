@@ -1,4 +1,4 @@
-export type ContentKind = 'truck' | 'trailer' | 'wheel' | 'other'
+export type ContentKind = 'truck' | 'trailer' | 'ai' | 'wheel' | 'other'
 export type ContentSource = 'bro' | 'pak'
 export type RecommendationLevel = 'low' | 'medium' | 'high'
 export type ParameterValue = number | string | boolean
@@ -110,7 +110,7 @@ export interface SaveGameChanges {
 }
 
 export interface RoadCraftApi {
-  getSettings(): Promise<{ installPath: string; locale: string }>
+  getSettings(): Promise<{ installPath: string; locale: string; version: string }>
   scan(): Promise<ScanResult>
   chooseInstall(): Promise<ScanResult | undefined>
   save(payload: SavePayload): Promise<OperationResult>

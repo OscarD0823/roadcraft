@@ -5,23 +5,9 @@
         <img :src="iconUrl" alt="" class="brand__icon">
         <div>
           <strong>RoadCraft Studio</strong>
-          <span>{{ t('appSubtitle') }}</span>
+          <span>v{{ appVersion }}</span>
         </div>
       </div>
-
-      <nav class="primary-nav">
-        <button
-          v-for="item in navigation"
-          :key="item.value"
-          class="nav-button"
-          :class="{ 'nav-button--active': view === item.value }"
-          @click="view = item.value"
-        >
-          <span class="nav-button__icon">{{ item.icon }}</span>
-          <span>{{ item.label }}</span>
-          <small>{{ item.count }}</small>
-        </button>
-      </nav>
 
       <div class="topbar__actions">
         <label class="language-select" :title="t('language')">
@@ -36,52 +22,35 @@
       </div>
     </header>
 
-    <section v-if="view !== 'save'" class="workspace-hero">
-      <div class="workspace-hero__content">
-        <span class="eyebrow">ROADCRAFT MOD WORKSPACE</span>
-        <h1>{{ currentTitle }}</h1>
-        <p>{{ t('libraryHelp') }}</p>
+    <section class="workspace-nav">
+      <nav class="primary-nav" :aria-label="t('mainSections')">
+        <button
+          v-for="item in navigation"
+          :key="item.value"
+          class="nav-button"
+          :class="{ 'nav-button--active': view === item.value }"
+          @click="view = item.value"
+        >
+          <span class="nav-button__icon">{{ item.icon }}</span>
+          <span>{{ item.label }}</span>
+          <small>{{ item.count }}</small>
+        </button>
+      </nav>
+      <div v-if="view !== 'save'" class="workspace-nav__tools">
         <div class="path-chip" :title="scanResult?.installPath">
           <span class="status-dot" />
-          <strong>{{ t('detectedPath') }}:</strong>
           <span>{{ scanResult?.installPath || '—' }}</span>
         </div>
-      </div>
-
-      <div class="workspace-hero__actions">
+        <button class="tool-button" :title="t('openFolder')" @click="openSourceFolder">📁</button>
+        <button class="tool-button" :title="t('openEditor')" @click="launchEditor">🛠</button>
         <button class="button button--primary" :disabled="loading" @click="scan">
           <span :class="{ spin: loading }">↻</span>
           {{ loading ? t('scanning') : t('scan') }}
         </button>
-        <button class="button button--ghost" @click="openSourceFolder">📁 {{ t('openFolder') }}</button>
-        <button class="button button--ghost" @click="launchEditor">🛠 {{ t('openEditor') }}</button>
-      </div>
-
-      <div class="stats-row">
-        <article>
-          <strong>{{ scanResult?.entries.length ?? 0 }}</strong>
-          <span>{{ t('availableContent') }}</span>
-        </article>
-        <article>
-          <strong>{{ countByKind('truck') }}</strong>
-          <span>{{ t('vehicles') }}</span>
-        </article>
-        <article>
-          <strong>{{ countByKind('trailer') }}</strong>
-          <span>{{ t('trailers') }}</span>
-        </article>
-        <article>
-          <strong>{{ countByKind('wheel') }}</strong>
-          <span>{{ t('wheels') }}</span>
-        </article>
-        <article>
-          <strong>{{ scanResult?.packageCount ?? 0 }}</strong>
-          <span>{{ t('modProjects') }}</span>
-        </article>
       </div>
     </section>
 
-    <section v-else class="save-hero">
+    <section v-if="view === 'save'" class="save-hero">
       <div>
         <span class="eyebrow">ROADCRAFT COMPLETE SAVE</span>
         <h1>{{ t('saveGames') }}</h1>
@@ -126,9 +95,9 @@
             @click="selectEntry(entry)"
           >
             <div class="content-card__media">
-              <img v-if="entry.imageUrl" :src="entry.imageUrl" :alt="entry.name">
+              <img v-if="entry.imageUrl" :src="entry.imageUrl" :alt="entry.name" loading="lazy" decoding="async" @error="handleImageError(entry)">
               <div v-else class="vehicle-placeholder">
-                <span>{{ entry.kind === 'wheel' ? '◎' : entry.kind === 'trailer' ? '▰' : '◰' }}</span>
+                <span>{{ entry.kind === 'wheel' ? '◎' : entry.kind === 'trailer' ? '▰' : entry.kind === 'ai' ? '⌁' : '◰' }}</span>
                 <small>{{ entry.sourceType === 'pak' ? '.CLS · PAK' : '.BRO' }}</small>
               </div>
               <span v-if="entry.modified" class="edited-badge">✎ {{ t('edited') }}</span>
@@ -390,11 +359,12 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import type { ContentEntry, ContentKind, EditableParameter, ParameterValue, SaveGameData, SaveSlotSummary, ScanResult } from '../shared'
 import { locales, translate } from './i18n'
 
-type View = 'all' | 'truck' | 'trailer' | 'wheel' | 'modified' | 'other' | 'save'
+type View = 'all' | 'truck' | 'trailer' | 'ai' | 'wheel' | 'modified' | 'other' | 'save'
 type SaveSection = 'stats' | 'trucks' | 'maps'
 
 const iconUrl = new URL('../assets/app-icon.png', import.meta.url).href
 const locale = ref('es')
+const appVersion = ref('—')
 const view = ref<View>('all')
 const search = ref('')
 const loading = ref(false)
@@ -415,12 +385,12 @@ const navigation = computed(() => [
   { value: 'all' as const, icon: '▦', label: t('all'), count: scanResult.value?.entries.length ?? 0 },
   { value: 'truck' as const, icon: '◰', label: t('vehicles'), count: countByKind('truck') },
   { value: 'trailer' as const, icon: '▰', label: t('trailers'), count: countByKind('trailer') },
+  { value: 'ai' as const, icon: '⌁', label: t('aiVehicles'), count: countByKind('ai') },
   { value: 'wheel' as const, icon: '◎', label: t('wheels'), count: countByKind('wheel') },
   { value: 'modified' as const, icon: '✎', label: t('modified'), count: scanResult.value?.entries.filter(entry => entry.modified).length ?? 0 },
   { value: 'other' as const, icon: '◇', label: t('other'), count: countByKind('other') },
   { value: 'save' as const, icon: '▣', label: t('saveGames'), count: saveSlots.value.length }
 ])
-const currentTitle = computed(() => navigation.value.find(item => item.value === view.value)?.label ?? t('availableContent'))
 const filteredEntries = computed(() => {
   const query = search.value.trim().toLowerCase()
   return (scanResult.value?.entries ?? []).filter(entry => {
@@ -448,6 +418,7 @@ onMounted(async () => {
   try {
     const settings = await window.roadcraft.getSettings()
     locale.value = settings.locale || 'es'
+    appVersion.value = settings.version || '—'
     document.documentElement.lang = locale.value
   } catch (error) {
     showError(error)
@@ -491,6 +462,11 @@ function selectEntry(entry: ContentEntry) {
   selectedId.value = entry.id
   for (const key of Object.keys(draftValues)) delete draftValues[key]
   for (const parameter of entry.parameters) draftValues[parameter.id] = parameter.value
+}
+
+function handleImageError(entry: ContentEntry) {
+  entry.imageUrl = undefined
+  entry.imageKind = undefined
 }
 
 function applyRecommendation(parameterId: string, value: number) {
@@ -681,6 +657,7 @@ function displayValue(parameter: EditableParameter, value: ParameterValue) {
 function kindLabel(kind: ContentKind) {
   if (kind === 'truck') return 'truck'
   if (kind === 'trailer') return 'trailer'
+  if (kind === 'ai') return 'aiVehicle'
   if (kind === 'wheel') return 'wheel'
   return 'otherKind'
 }

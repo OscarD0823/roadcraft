@@ -1,7 +1,7 @@
 import { strict as assert } from 'node:assert'
 import { app } from 'electron'
 import { RoadCraftService, PAK_TRUCK_PARAMETERS, type ParameterSpec } from '../src/main/roadcraft.ts'
-import { readMatchingTextEntries } from '../src/main/zip-package.ts'
+import { readMatchingTextEntries, type TextArchiveEntry } from '../src/main/zip-package.ts'
 
 interface TestableService {
   createParameters(source: string, specs: ParameterSpec[], itemId: string): {
@@ -10,19 +10,27 @@ interface TestableService {
   }
   replaceParameterValue(source: string, spec: ParameterSpec, value: number): string
   replaceLinkedParameterValues(source: string, spec: ParameterSpec, value: number): string
+  parsePackagedVehicle(archived: TextArchiveEntry, packagePath: string, packagedImages: string[]): {
+    entry: { kind: string }
+  }
 }
+
+const packagePath = 'E:\\SteamLibrary\\steamapps\\common\\RoadCraft\\root\\paks\\client\\default\\default_other.pak'
 
 function fieldValue(source: string, field: string) {
   const match = new RegExp(`(?:^|\\n)\\s*${field}\\s*=\\s*([-+]?\\d*\\.?\\d+)`, 'm').exec(source)
   return match ? Number(match[1]) : undefined
 }
 
-async function loadVehicle(id: string) {
-  const packagePath = 'E:\\SteamLibrary\\steamapps\\common\\RoadCraft\\root\\paks\\client\\default\\default_other.pak'
+async function loadVehicleEntry(id: string) {
   const entryName = `ssl/autogen_designer_wizard/trucks/${id}/${id}.cls`
   const [entry] = await readMatchingTextEntries(packagePath, name => name.toLowerCase() === entryName)
   assert(entry, `No se encontró ${entryName}`)
-  return entry.content
+  return entry
+}
+
+async function loadVehicle(id: string) {
+  return (await loadVehicleEntry(id)).content
 }
 
 async function main() {
@@ -58,7 +66,17 @@ async function main() {
   const changedBowhead = service.replaceParameterValue(bowheadSource, widthSpec, 1000)
   assert.match(changedBowhead, /prop_road_plan_worker\s*=\s*\{[\s\S]*?loadVolumeSettings\s*=\s*\{[\s\S]*?radius\s*=\s*500/m)
 
-  console.log('Equipo de trabajo: Zikz 605E y ancho del Bowhead verificados contra el PAK real.')
+  for (const [id, expectedKind] of [
+    ['auto_wayfarer_st7050_cargo_main', 'trailer'],
+    ['auto_wayfarer_st7050_trailer_cargo_ai', 'ai'],
+    ['auto_don_72malamute_scout_trailer_new', 'truck'],
+    ['auto_tuz_119lynx_scout_trailer_res', 'truck']
+  ] as const) {
+    const parsed = service.parsePackagedVehicle(await loadVehicleEntry(id), packagePath, [])
+    assert.equal(parsed.entry.kind, expectedKind, `${id} debe clasificarse como ${expectedKind}`)
+  }
+
+  console.log('Equipo de trabajo y clasificación vehículo/tráiler/IA verificados contra el PAK real.')
   app.quit()
 }
 

@@ -18,7 +18,7 @@ export const locales = [
 
 const en: Record<string, string> = {
   appSubtitle: 'Safe vehicle mod workspace',
-  vehicles: 'Vehicles', trailers: 'Trailers', wheels: 'Wheels', modified: 'Edited', other: 'Other', all: 'All',
+  vehicles: 'Vehicles', trailers: 'Trailers', aiVehicles: 'AI units', wheels: 'Wheels', modified: 'Edited', other: 'Other', all: 'All',
   scan: 'Scan again', openFolder: 'Open source folder', openEditor: 'Open Mod Editor', changePath: 'Change game folder',
   detectedPath: 'Detected installation', availableContent: 'Editable content', modProjects: 'Mod projects',
   sourceFiles: 'editable items', search: 'Search', searchPlaceholder: 'Vehicle, trailer, wheel or internal name...',
@@ -29,7 +29,8 @@ const en: Record<string, string> = {
   successRestored: 'Original values restored.', error: 'Error', scanning: 'Scanning RoadCraft content...',
   safeRange: 'Protected range', language: 'Language', sourceFile: 'Source file', edited: 'Edited',
   shopImage: 'Shop cover', relatedImage: 'Same vehicle family', modImage: 'Mod image', customImage: 'Custom image',
-  truck: 'Vehicle', trailer: 'Trailer', wheel: 'Wheel', otherKind: 'Resource', details: 'Details', basePackage: 'Base .pak', noParams: 'No safe quick parameters are available for this file.',
+  truck: 'Vehicle', trailer: 'Trailer', aiVehicle: 'AI unit', wheel: 'Wheel', otherKind: 'Resource', details: 'Details', basePackage: 'Base .pak', noParams: 'No safe quick parameters are available for this file.',
+  mainSections: 'Main sections',
   engine: 'Engine', fuel: 'Fuel', suspension: 'Suspension', gearbox: 'Gearbox', steering: 'Steering', economy: 'Economy', drivetrain: 'Drivetrain', workEquipment: 'Work equipment',
   wheelGeometry: 'Wheel geometry', traction: 'Traction', engineTorque: 'Engine torque', fuelCapacity: 'Fuel tank capacity',
   fuelConsumption: 'Fuel consumption', frontSuspensionStrength: 'Front suspension strength', rearSuspensionStrength: 'Rear suspension strength',
@@ -62,8 +63,8 @@ const en: Record<string, string> = {
 
 const es: Record<string, string> = {
   ...en,
-  appSubtitle: 'Centro seguro de mods para vehículos',
-  vehicles: 'Vehículos', trailers: 'Tráilers', wheels: 'Llantas', modified: 'Modificados', other: 'Otros', all: 'Todos',
+  appSubtitle: '',
+  vehicles: 'Vehículos', trailers: 'Tráilers', aiVehicles: 'Uso de IA', wheels: 'Llantas', modified: 'Modificados', other: 'Otros', all: 'Todos',
   scan: 'Buscar de nuevo', openFolder: 'Abrir archivos fuente', openEditor: 'Abrir Mod Editor', changePath: 'Cambiar carpeta del juego',
   detectedPath: 'Instalación detectada', availableContent: 'Contenido editable', modProjects: 'Proyectos de mods',
   sourceFiles: 'elementos editables', search: 'Buscar', searchPlaceholder: 'Vehículo, tráiler, llanta o nombre interno...',
@@ -74,7 +75,8 @@ const es: Record<string, string> = {
   successRestored: 'Se restauraron los valores originales.', error: 'Error', scanning: 'Analizando el contenido de RoadCraft...',
   safeRange: 'Rango protegido', language: 'Idioma', sourceFile: 'Archivo fuente', edited: 'Modificado',
   shopImage: 'Carátula de tienda', relatedImage: 'Misma familia', modImage: 'Imagen del mod', customImage: 'Imagen elegida',
-  truck: 'Vehículo', trailer: 'Tráiler', wheel: 'Llanta', otherKind: 'Recurso', details: 'Detalles', basePackage: '.pak base', noParams: 'Este archivo no tiene parámetros rápidos que podamos cambiar con seguridad.',
+  truck: 'Vehículo', trailer: 'Tráiler', aiVehicle: 'Uso de IA', wheel: 'Llanta', otherKind: 'Recurso', details: 'Detalles', basePackage: '.pak base', noParams: 'Este archivo no tiene parámetros rápidos que podamos cambiar con seguridad.',
+  mainSections: 'Secciones principales',
   engine: 'Motor', fuel: 'Combustible', suspension: 'Suspensión', gearbox: 'Transmisión', steering: 'Dirección', economy: 'Economía', drivetrain: 'Tracción', workEquipment: 'Equipo de trabajo',
   wheelGeometry: 'Geometría de la llanta', traction: 'Tracción', engineTorque: 'Fuerza del motor', fuelCapacity: 'Capacidad del tanque',
   fuelConsumption: 'Consumo de combustible', frontSuspensionStrength: 'Fuerza de suspensión delantera', rearSuspensionStrength: 'Fuerza de suspensión trasera',
