@@ -385,8 +385,7 @@ button { cursor: pointer; }
 }
 
 .kind-badge,
-.edited-badge,
-.image-badge {
+.edited-badge {
   position: absolute;
   top: 9px;
   padding: 4px 7px;
@@ -399,7 +398,6 @@ button { cursor: pointer; }
 
 .kind-badge { inset-inline-end: 9px; }
 .edited-badge { inset-inline-start: 9px; color: #ffedd5; background: rgba(194, 65, 12, 0.9); }
-.image-badge { inset-inline-start: 9px; bottom: 9px; color: #e0f2fe; background: rgba(3, 105, 161, 0.88); }
 
 .center-state {
   display: grid;

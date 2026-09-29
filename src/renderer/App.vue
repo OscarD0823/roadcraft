@@ -97,12 +97,11 @@
             <div class="content-card__media">
               <img v-if="entry.imageUrl" :src="entry.imageUrl" :alt="entry.name" loading="lazy" decoding="async" @error="handleImageError(entry)">
               <div v-else class="vehicle-placeholder">
-                <span>{{ entry.kind === 'wheel' ? '◎' : entry.kind === 'trailer' ? '▰' : entry.kind === 'ai' ? '⌁' : '◰' }}</span>
+                <span>{{ entry.kind === 'trailer' ? '▰' : entry.kind === 'ai' ? '⌁' : '◰' }}</span>
                 <small>{{ entry.sourceType === 'pak' ? '.CLS · PAK' : '.BRO' }}</small>
               </div>
               <span v-if="entry.modified" class="edited-badge">✎ {{ t('edited') }}</span>
               <span class="kind-badge">{{ t(kindLabel(entry.kind)) }}</span>
-              <span v-if="entry.imageKind" class="image-badge">{{ t(`${entry.imageKind}Image`) }}</span>
             </div>
             <div class="content-card__body">
               <strong>{{ entry.name }}</strong>
@@ -359,7 +358,7 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import type { ContentEntry, ContentKind, EditableParameter, ParameterValue, SaveGameData, SaveSlotSummary, ScanResult } from '../shared'
 import { locales, translate } from './i18n'
 
-type View = 'all' | 'truck' | 'trailer' | 'ai' | 'wheel' | 'modified' | 'other' | 'save'
+type View = 'all' | 'truck' | 'trailer' | 'ai' | 'modified' | 'other' | 'save'
 type SaveSection = 'stats' | 'trucks' | 'maps'
 
 const iconUrl = new URL('../assets/app-icon.png', import.meta.url).href
@@ -386,7 +385,6 @@ const navigation = computed(() => [
   { value: 'truck' as const, icon: '◰', label: t('vehicles'), count: countByKind('truck') },
   { value: 'trailer' as const, icon: '▰', label: t('trailers'), count: countByKind('trailer') },
   { value: 'ai' as const, icon: '⌁', label: t('aiVehicles'), count: countByKind('ai') },
-  { value: 'wheel' as const, icon: '◎', label: t('wheels'), count: countByKind('wheel') },
   { value: 'modified' as const, icon: '✎', label: t('modified'), count: scanResult.value?.entries.filter(entry => entry.modified).length ?? 0 },
   { value: 'other' as const, icon: '◇', label: t('other'), count: countByKind('other') },
   { value: 'save' as const, icon: '▣', label: t('saveGames'), count: saveSlots.value.length }
@@ -658,7 +656,6 @@ function kindLabel(kind: ContentKind) {
   if (kind === 'truck') return 'truck'
   if (kind === 'trailer') return 'trailer'
   if (kind === 'ai') return 'aiVehicle'
-  if (kind === 'wheel') return 'wheel'
   return 'otherKind'
 }
 

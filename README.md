@@ -1,6 +1,6 @@
 # RoadCraft Studio
 
-## Versión 0.5.1
+## Versión 0.5.2
 
 - Permite configurar hasta 1.000 m el ancho funcional de pavimentadoras, rodillos, topadoras y volquetes sin escalar el modelo visual.
 - Mantiene sincronizadas las zonas principal, trasera y delantera de trabajo de los rodillos.
@@ -8,9 +8,11 @@
 - Añade controles específicos para la trituradora móvil Zikz 605E: restricción de terreno, radio de detección y distancia de funcionamiento.
 - Rediseña la navegación, separa las unidades exclusivas de IA y clasifica los tráilers mediante las etiquetas internas del juego.
 - Corrige las carátulas BC1/BC7 del juego y elimina el ruido multicolor de las imágenes.
+- Completa el catálogo con los iconos oficiales de vehículos cuando no existe una carátula de tienda.
+- Clasifica la IA usando la biblioteca actual del juego, oculta las fuentes de llantas y elimina las etiquetas superpuestas de las imágenes.
 - Adapta el catálogo y el inspector para trabajar cómodamente con la pantalla dividida.
 
-Editor visual, seguro y multilenguaje para vehículos, tráilers, llantas y partidas de RoadCraft.
+Editor visual, seguro y multilenguaje para vehículos, tráilers, unidades de IA y partidas de RoadCraft.
 
 RoadCraft Studio detecta automáticamente la instalación ubicada en
 `E:\SteamLibrary\steamapps\common\RoadCraft`, analiza recursivamente los archivos fuente
@@ -20,17 +22,17 @@ parámetros seleccionados sin salir de límites conservadores.
 ## Funciones
 
 - Catálogo de vehículos base leído directamente desde `default_other.pak`.
-- Biblioteca separada para vehículos, tráilers, llantas, recursos y elementos modificados.
+- Biblioteca separada para vehículos, tráilers, unidades de IA, recursos y elementos modificados.
 - Detección automática de nuevos `.cls` y `.bro` al iniciar y con **Buscar de nuevo**.
 - Valores original y actual, con recomendaciones **Poco**, **Medio** y **Alto**.
 - Rangos protegidos para par y respuesta del motor, combustible, frenos, suspensión,
-  transmisión, dirección, tracción, bloqueo de diferencial y dimensiones reales de llantas.
+  transmisión, dirección, tracción y bloqueo de diferencial.
 - Copia completa de seguridad del `.pak` antes de la primera modificación y una nueva
   copia cuando RoadCraft o un mod externo reemplazan el paquete.
 - Reconstrucción verificada del paquete y eliminación segura de `default_other.pak.cache`.
 - Restauración del valor original desde la propia aplicación.
-- Carátulas oficiales extraídas localmente de `ui_shop_*.pct_mip`; las configuraciones
-  especiales sin carátula propia se identifican como imagen relacionada.
+- Carátulas e iconos oficiales extraídos localmente de `ui_shop_*.pct_mip` y
+  `ui_veh_*.pct_mip`, sin etiquetas superpuestas sobre la imagen.
 - Imagen personalizada de mods leída desde `uiCustomShopIcon` o `uiCustomIcon` del `.bro`.
 - Acceso al Mod Editor oficial de RoadCraft para construir el paquete `.pak`.
 - Interfaz disponible en los 15 idiomas compatibles con RoadCraft; español e inglés
@@ -52,7 +54,7 @@ paquete. También continúa trabajando con las fuentes oficiales `.bro` de mods.
 
 1. Cierra RoadCraft antes de modificar un vehículo del paquete base. La aplicación
    bloquea el guardado si detecta el juego abierto.
-2. Selecciona un vehículo o una llanta.
+2. Selecciona un vehículo, tráiler o unidad de IA.
 3. Elige un nivel recomendado o escribe un valor dentro del rango protegido.
 4. Guarda los cambios.
 5. Para proyectos `.bro`, abre el Mod Editor oficial para construir y probar el mod.

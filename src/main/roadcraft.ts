@@ -9,7 +9,7 @@ import { promisify } from 'node:util'
 import type { ContentEntry, ContentKind, EditableParameter, OperationResult, ParameterKind, ParameterValue, SaveGameChanges, SaveGameData, SavePayload, SaveSlotSummary, ScanResult } from '../shared'
 import { applySaveGameChanges, createSaveGameData, decodeCompleteSave, encodeCompleteSave } from './save-game'
 import { readMatchingBinaryEntries, readMatchingTextEntries, replaceTextEntry, type TextArchiveEntry } from './zip-package'
-import { decodeRoadCraftShopTexture } from './shop-texture'
+import { decodeRoadCraftShopTexture, decodeRoadCraftTexture } from './shop-texture'
 
 interface PackageBackupState {
   backupPath: string
@@ -53,10 +53,84 @@ interface CatalogItem {
   archiveEntryName?: string
 }
 
+export interface TruckLibraryRecord {
+  name: string
+  uiIcon?: string
+  isBase: boolean
+}
+
+interface PackagedVehicleMetadata {
+  registered: boolean
+  aiOnly: boolean
+  uiIcon?: string
+}
+
+interface TextureDescriptor {
+  width: number
+  height: number
+}
+
 const DEFAULT_INSTALL_PATH = 'E:\\SteamLibrary\\steamapps\\common\\RoadCraft'
 const BASE_VEHICLE_PATTERN = /^ssl\/autogen_designer_wizard\/trucks\/([^/]+)\/\1\.cls$/i
+const TRUCK_LIBRARY_PATTERN = /^ssl\/autogen_designer_wizard\/trucks\/auto_truck_library\.sso$/i
 const COMPATIBLE_IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.webp'])
+const PACKAGED_IMAGE_ALIASES: Record<string, string> = {
+  auto_5111b_dragline_building_demolisher: 'ui_veh_icon_dragline_511b',
+  auto_dragline_5111b_building_demolisher_old: 'ui_veh_icon_dragline_511b_old',
+  auto_minuteman_k370_explorer_res: 'ui_veh_icon_minuteman_explorer',
+  auto_n_and_s_260gantry_crane_railroad: 'ui_veh_newton_and_steig_260_gantry_crane_railroad',
+  auto_n_and_s_260gantry_crane_railroad_80m: 'ui_veh_newton_and_steig_260_gantry_crane_railroad',
+  auto_n_and_s_700r_tower_crane_railed: 'ui_veh_newton_and_steig_700_r_tower_crane_railed',
+  auto_n_and_s_700s_tower_crane: 'ui_veh_newton_and_steig_700_s_tower_crane_stat',
+  auto_n_and_s_loader20g_crane_grabber: 'ui_veh_newton_and_steig_loader_20_g_crane_grabber',
+  auto_wayfarer_gas_semitrailer: 'ui_veh_wayfarer_st7050_veh_trailer_gas',
+  auto_wayfarer_oft96_ts_t_crane_flatbed_new: 'ui_veh_icon_wayfarer_oft96_ts_t'
+}
 const execFileAsync = promisify(execFile)
+
+export function parseTruckLibrary(source: string) {
+  const records = new Map<string, TruckLibraryRecord>()
+  const pattern = /^ {3}"?([a-z0-9_]+)"?\s*=\s*\{/gmi
+  let match: RegExpExecArray | null
+
+  while ((match = pattern.exec(source))) {
+    const open = source.indexOf('{', match.index)
+    let depth = 0
+    let quoted = false
+    let close = source.length
+
+    for (let index = open; index < source.length; index++) {
+      const character = source[index]
+      if (character === '"' && source[index - 1] !== '\\') quoted = !quoted
+      if (quoted) continue
+      if (character === '{') depth++
+      if (character === '}') depth--
+      if (depth === 0) {
+        close = index
+        break
+      }
+    }
+
+    const name = match[1].toLowerCase()
+    const block = source.slice(open + 1, close)
+    const uiIcon = /^ {6}uiIcon\s*=\s*"([^"]+)"/mi.exec(block)?.[1]
+    records.set(name, { name, uiIcon, isBase: name.startsWith('base_') })
+    pattern.lastIndex = close + 1
+  }
+
+  return records
+}
+
+export function resolvePackagedVehicleMetadata(stem: string, library: Map<string, TruckLibraryRecord>): PackagedVehicleMetadata {
+  const name = stem.toLowerCase().replace(/^auto_/, '')
+  const regular = library.get(name)
+  const base = library.get(`base_${name}`)
+  return {
+    registered: Boolean(regular || base),
+    aiOnly: /(?:^|_)ai(?:_|$)/i.test(name) || Boolean(base && !regular),
+    uiIcon: regular?.uiIcon ?? base?.uiIcon
+  }
+}
 
 const BRO_TRUCK_PARAMETERS: ParameterSpec[] = [
   {
@@ -232,29 +306,6 @@ export const PAK_TRUCK_PARAMETERS: ParameterSpec[] = [
   }
 ]
 
-const WHEEL_PARAMETERS: ParameterSpec[] = [
-  {
-    id: 'wheelMass', path: ['truckWheel'], field: 'mass',
-    labelKey: 'wheelMass', groupKey: 'wheelGeometry', unit: 'kg', factors: [1.02, 1.05, 1.1], safeFactors: [0.8, 1.15]
-  },
-  {
-    id: 'wheelRadius', path: ['truckWheel'], field: 'radius',
-    labelKey: 'wheelRadius', groupKey: 'wheelGeometry', unit: 'm', factors: [1.02, 1.04, 1.06], safeFactors: [0.94, 1.06]
-  },
-  {
-    id: 'wheelWidth', path: ['truckWheel'], field: 'width',
-    labelKey: 'wheelWidth', groupKey: 'wheelGeometry', unit: 'm', factors: [1.02, 1.04, 1.06], safeFactors: [0.94, 1.06]
-  },
-  {
-    id: 'wheelRadiusOffset', path: ['truckWheel'], field: 'radiusOffset',
-    labelKey: 'wheelRadiusOffset', groupKey: 'wheelGeometry', unit: 'm', factors: [1.01, 1.02, 1.03], safeFactors: [0.97, 1.03]
-  },
-  {
-    id: 'rimRadius', path: ['truckWheel'], field: 'rimRadius',
-    labelKey: 'rimRadius', groupKey: 'wheelGeometry', unit: 'm', factors: [1.01, 1.02, 1.03], safeFactors: [0.97, 1.03]
-  }
-]
-
 export class RoadCraftService {
   private readonly settingsPath = join(app.getPath('userData'), 'settings.json')
   private readonly backupsRoot = join(app.getPath('userData'), 'backups')
@@ -334,13 +385,16 @@ export class RoadCraftService {
     const sourceRoot = join(this.settings.installPath, 'root', 'mods_source')
     const broRoot = join(sourceRoot, 'bro')
     const basePackage = this.getBasePackagePath()
-    const broFiles = await this.walkFiles(broRoot, new Set(['.bro']))
+    const broFiles = (await this.walkFiles(broRoot, new Set(['.bro'])))
+      .filter(filePath => !relative(broRoot, filePath).split(sep).some(part => part.toLowerCase() === 'wheels'))
     const compatibleImages = await this.walkFiles(sourceRoot, COMPATIBLE_IMAGE_EXTENSIONS)
     const modDefinitions = await this.walkFiles(sourceRoot, new Set(['.mod']))
-    const packagedVehicles = existsSync(basePackage)
-      ? await readMatchingTextEntries(basePackage, entryName => BASE_VEHICLE_PATTERN.test(entryName))
+    const packagedSources = existsSync(basePackage)
+      ? await readMatchingTextEntries(basePackage, entryName => BASE_VEHICLE_PATTERN.test(entryName) || TRUCK_LIBRARY_PATTERN.test(entryName))
       : []
-    const packagedImages = await this.findPackagedVehicleImages(packagedVehicles)
+    const packagedVehicles = packagedSources.filter(item => BASE_VEHICLE_PATTERN.test(item.entryName))
+    const truckLibrary = parseTruckLibrary(packagedSources.find(item => TRUCK_LIBRARY_PATTERN.test(item.entryName))?.content ?? '')
+    const packagedImages = await this.findPackagedVehicleImages(packagedVehicles, truckLibrary)
     const entries: ContentEntry[] = []
 
     this.catalog.clear()
@@ -352,7 +406,7 @@ export class RoadCraftService {
     }
 
     for (const archivedVehicle of packagedVehicles) {
-      const parsed = this.parsePackagedVehicle(archivedVehicle, basePackage, packagedImages)
+      const parsed = this.parsePackagedVehicle(archivedVehicle, basePackage, packagedImages, truckLibrary)
       entries.push(parsed.entry)
       this.catalog.set(parsed.entry.id, parsed)
     }
@@ -592,18 +646,14 @@ export class RoadCraftService {
     const rawCategory = this.readStringValue(source, ['uiInfo'], 'uiType') ?? folder
     const kind: ContentKind = /(?:^|_)ai(?:_|$)/i.test(internalName) || folder === 'ai'
       ? 'ai'
-      : folder === 'wheels'
-        ? 'wheel'
-        : /trailer|semitruck/i.test(`${folder} ${rawCategory}`)
-          ? 'trailer'
-          : folder === 'trucks'
-            ? 'truck'
-            : 'other'
+      : /trailer|semitruck/i.test(`${folder} ${rawCategory}`)
+        ? 'trailer'
+        : folder === 'trucks'
+          ? 'truck'
+          : 'other'
     const specs = kind === 'truck' || kind === 'trailer' || kind === 'ai'
       ? BRO_TRUCK_PARAMETERS
-      : kind === 'wheel'
-        ? WHEEL_PARAMETERS
-        : []
+      : []
     const { parameters, specMap } = this.createParameters(source, specs, id)
     const uiName = this.readStringValue(source, ['chassisInfo'], 'uiName')
       ?? this.readStringValue(source, ['uiInfo'], 'uiName')
@@ -641,15 +691,26 @@ export class RoadCraftService {
     }
   }
 
-  private parsePackagedVehicle(archived: TextArchiveEntry, packagePath: string, packagedImages: string[]): CatalogItem {
+  private parsePackagedVehicle(
+    archived: TextArchiveEntry,
+    packagePath: string,
+    packagedImages: string[],
+    truckLibrary = new Map<string, TruckLibraryRecord>()
+  ): CatalogItem {
     const stem = basename(archived.entryName, '.cls')
     const id = `pak:${resolve(packagePath)}::${archived.entryName}`
     const lowerName = stem.toLowerCase()
+    const metadata = resolvePackagedVehicleMetadata(stem, truckLibrary)
     const moduleTag = this.readStringValue(archived.content, [], 'tag') ?? ''
-    const isAi = /(?:^|_)ai(?:_|$)/i.test(lowerName)
     const isTrailer = /^UID_MODULE_SEMITRUCK_(?:TRAILER|FUEL)$/i.test(moduleTag)
       || (/wayfarer/i.test(lowerName) && /(?:semi)?trailer|cargo_main/i.test(lowerName))
-    const kind: ContentKind = isAi ? 'ai' : isTrailer ? 'trailer' : 'truck'
+    const kind: ContentKind = metadata.aiOnly
+      ? 'ai'
+      : isTrailer
+        ? 'trailer'
+        : metadata.registered || truckLibrary.size === 0
+          ? 'truck'
+          : 'other'
     const { parameters, specMap } = this.createParameters(archived.content, PAK_TRUCK_PARAMETERS, id)
     const truckType = this.readStringValue(archived.content, ['properties', 'prop_truck_view'], 'truckType') ?? kind
     const customImage = this.settings.customImages[id]
@@ -658,7 +719,7 @@ export class RoadCraftService {
       ? customImage
       : automaticImage && existsSync(automaticImage)
         ? automaticImage
-        : this.matchPackagedImage(stem, packagedImages)
+        : this.matchPackagedImage(stem, packagedImages, metadata.uiIcon)
 
     return {
       specs: specMap,
@@ -1017,20 +1078,37 @@ export class RoadCraftService {
       .sort((a, b) => a.score - b.score)[0]?.image
   }
 
-  private async findPackagedVehicleImages(vehicles: TextArchiveEntry[]) {
+  private async findPackagedVehicleImages(
+    vehicles: TextArchiveEntry[],
+    truckLibrary: Map<string, TruckLibraryRecord>
+  ) {
     const cacheRoot = join(app.getPath('userData'), 'vehicle-images')
     const packageRoot = join(this.settings.installPath, 'root', 'paks', 'client')
-    const packages = (await this.walkFiles(packageRoot, new Set(['.pak'])))
+    const packageCandidates = (await this.walkFiles(packageRoot, new Set(['.pak'])))
       .filter(packagePath => /^default_pct_\d+\.pak$/i.test(basename(packagePath)))
+    const packageByName = new Map<string, string>()
+    for (const packagePath of packageCandidates) {
+      const key = basename(packagePath).toLowerCase()
+      const current = packageByName.get(key)
+      if (!current || relative(packageRoot, packagePath).split(sep).length < relative(packageRoot, current).split(sep).length) {
+        packageByName.set(key, packagePath)
+      }
+    }
+    const packages = [...packageByName.values()]
+    const resourcesPath = join(packageRoot, 'resources.pak')
     const signatureParts: string[] = []
 
     for (const packagePath of packages) {
       const packageStats = await stat(packagePath)
       signatureParts.push(`${relative(packageRoot, packagePath)}:${packageStats.size}:${Math.trunc(packageStats.mtimeMs)}`)
     }
+    if (existsSync(resourcesPath)) {
+      const resourcesStats = await stat(resourcesPath)
+      signatureParts.push(`resources.pak:${resourcesStats.size}:${Math.trunc(resourcesStats.mtimeMs)}`)
+    }
 
     const signature = createHash('sha256')
-      .update(`shop-textures-v3-bc7|${signatureParts.sort().join('|')}`)
+      .update(`vehicle-textures-v5-official-icons|${signatureParts.sort().join('|')}`)
       .digest('hex')
     const cachedImages = await this.walkFiles(cacheRoot, COMPATIBLE_IMAGE_EXTENSIONS)
 
@@ -1038,6 +1116,7 @@ export class RoadCraftService {
       const vehicleKeys = vehicles.map(vehicle => (
         this.normalizeImageKey(basename(vehicle.entryName, '.cls'))
       ))
+      const textureDescriptors = await this.readVehicleTextureDescriptors(resourcesPath)
       await mkdir(cacheRoot, { recursive: true })
 
       for (const packagePath of packages) {
@@ -1048,9 +1127,12 @@ export class RoadCraftService {
             if (extension !== '.pct_mip' && !COMPATIBLE_IMAGE_EXTENSIONS.has(extension)) return false
             if (extension === '.pct_mip' && !/_0\.pct_mip$/i.test(entryName)) return false
 
-            const key = this.normalizeImageKey(basename(entryName, extension))
-            return /ui_shop_/i.test(entryName)
+            const textureName = basename(entryName, extension).replace(/_0$/i, '')
+            const key = this.normalizeImageKey(textureName)
+            const isRegisteredIcon = /package_ui_vehicles_icons/i.test(entryName)
+            const isMatchingShopImage = /ui_shop_/i.test(entryName)
               && vehicleKeys.some(vehicleKey => key.includes(vehicleKey) || vehicleKey.includes(key))
+            return isRegisteredIcon || isMatchingShopImage
           })
         } catch {
           // Algunos paquetes del juego no son ZIP estándar. Se omiten sin
@@ -1066,7 +1148,13 @@ export class RoadCraftService {
           const digest = createHash('sha1').update(image.entryName).digest('hex').slice(0, 10)
           const target = join(cacheRoot, `${key}-${digest}.${extension === '.pct_mip' ? 'png' : extension.slice(1)}`)
           if (extension === '.pct_mip') {
-            const png = decodeRoadCraftShopTexture(image.content)
+            const textureName = basename(image.entryName, extension).replace(/_0$/i, '').toLowerCase()
+            const descriptor = textureDescriptors.get(textureName)
+            const png = descriptor
+              ? decodeRoadCraftTexture(image.content, descriptor.width, descriptor.height)
+              : /ui_shop_/i.test(image.entryName)
+                ? decodeRoadCraftShopTexture(image.content)
+                : undefined
             if (png) await writeFile(target, png)
           } else if (!existsSync(target) && this.hasSupportedImageSignature(image.content, extension)) {
             await writeFile(target, image.content)
@@ -1078,7 +1166,8 @@ export class RoadCraftService {
       for (const vehicle of vehicles) {
         const stem = basename(vehicle.entryName, '.cls')
         const id = `pak:${resolve(this.getBasePackagePath())}::${vehicle.entryName}`
-        const match = this.matchPackagedImage(stem, allImages)
+        const metadata = resolvePackagedVehicleMetadata(stem, truckLibrary)
+        const match = this.matchPackagedImage(stem, allImages, metadata.uiIcon)
         if (match) this.settings.automaticImages[id] = match
       }
 
@@ -1090,9 +1179,35 @@ export class RoadCraftService {
     return cachedImages
   }
 
-  private matchPackagedImage(stem: string, images: string[]) {
+  private async readVehicleTextureDescriptors(resourcesPath: string) {
+    const descriptors = new Map<string, TextureDescriptor>()
+    if (!existsSync(resourcesPath)) return descriptors
+
+    let resources: TextArchiveEntry[]
+    try {
+      resources = await readMatchingTextEntries(resourcesPath, entryName => (
+        /package_ui_(?:vehicles_icons|garage)/i.test(entryName)
+        && /\.pct\.resource$/i.test(entryName)
+      ))
+    } catch {
+      return descriptors
+    }
+
+    for (const resource of resources) {
+      const width = Number(/^\s*sx:\s*(\d+)\s*$/mi.exec(resource.content)?.[1])
+      const height = Number(/^\s*sy:\s*(\d+)\s*$/mi.exec(resource.content)?.[1])
+      if (!Number.isSafeInteger(width) || !Number.isSafeInteger(height) || width <= 0 || height <= 0) continue
+      descriptors.set(basename(resource.entryName, '.pct.resource').toLowerCase(), { width, height })
+    }
+
+    return descriptors
+  }
+
+  private matchPackagedImage(stem: string, images: string[], iconReference?: string) {
     const vehicleKey = this.normalizeImageKey(stem)
     const vehicleTokens = this.imageTokens(stem)
+    const preferredImage = iconReference ?? PACKAGED_IMAGE_ALIASES[stem.toLowerCase()]
+    const iconKey = preferredImage ? this.normalizeImageKey(preferredImage) : ''
     const isTrailer = /(?:^|_)(?:semi)?trailer(?:_|$)/i.test(stem)
     return images
       .map(image => {
@@ -1102,15 +1217,17 @@ export class RoadCraftService {
           && imageTokens.length >= 2
           && vehicleTokens[0] === imageTokens[0]
           && vehicleTokens[1] === imageTokens[1]
-        const score = imageKey === vehicleKey
+        const score = iconKey && imageKey === iconKey
           ? 0
-          : imageKey.includes(vehicleKey)
-            ? imageKey.length - vehicleKey.length + 1
-            : vehicleKey.includes(imageKey)
-              ? vehicleKey.length - imageKey.length + 20
-              : !isTrailer && sameFamily
-                ? 100 + Math.abs(vehicleTokens.length - imageTokens.length)
-                : Number.POSITIVE_INFINITY
+          : imageKey === vehicleKey
+            ? 1
+            : imageKey.includes(vehicleKey)
+              ? imageKey.length - vehicleKey.length + 2
+              : vehicleKey.includes(imageKey)
+                ? vehicleKey.length - imageKey.length + 21
+                : !isTrailer && sameFamily
+                  ? 100 + Math.abs(vehicleTokens.length - imageTokens.length)
+                  : Number.POSITIVE_INFINITY
         return { image, score }
       })
       .filter(candidate => Number.isFinite(candidate.score))
@@ -1120,6 +1237,7 @@ export class RoadCraftService {
   private normalizeImageKey(value: string) {
     return value
       .toLowerCase()
+      .replace(/_\d+(?:-[a-f0-9]{10})?$/, '')
       .replace(/^ui_(?:shop|veh|vehicle)_/, '')
       .replace(/^auto_/, '')
       .replace(/_(?:new|shop|icon)$/, '')

@@ -1,4 +1,4 @@
-export type ContentKind = 'truck' | 'trailer' | 'ai' | 'wheel' | 'other'
+export type ContentKind = 'truck' | 'trailer' | 'ai' | 'other'
 export type ContentSource = 'bro' | 'pak'
 export type RecommendationLevel = 'low' | 'medium' | 'high'
 export type ParameterValue = number | string | boolean
