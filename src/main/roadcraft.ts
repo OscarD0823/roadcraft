@@ -39,6 +39,7 @@ interface ParameterSpec {
   safeFactors?: [number, number]
   absoluteRange?: [number, number]
   linkedPaths?: string[][]
+  linkedParameters?: Array<{ path: string[]; field: string }>
   options?: Array<{ value: string; labelKey: string }>
 }
 
@@ -201,6 +202,26 @@ const PAK_TRUCK_PARAMETERS: ParameterSpec[] = [
     id: 'paverWidth', path: ['properties', 'prop_truck_asphalter', 'asphalter', 'size'], field: 'x',
     labelKey: 'paverWidth', groupKey: 'workEquipment', unit: 'm', factors: [1.5, 2.5, 4],
     safeFactors: [0.9, 1.12], absoluteRange: [0.5, 20]
+  },
+  {
+    id: 'sandAllowedPercent', path: ['properties', 'prop_truck_mobile_sand_screen'], field: 'allowedPercent',
+    labelKey: 'sandAllowedPercent', groupKey: 'workEquipment', factors: [0.5, 0.25, 0],
+    safeFactors: [0, 1], absoluteRange: [0, 1]
+  },
+  {
+    id: 'sandMaterialCheckRadius', path: ['properties', 'prop_truck_mobile_sand_screen'], field: 'materialCheckRadius',
+    labelKey: 'sandMaterialCheckRadius', groupKey: 'workEquipment', unit: 'm', factors: [1.33, 2, 3.33],
+    safeFactors: [0.75, 1.5], absoluteRange: [1, 20]
+  },
+  {
+    id: 'sandOperatingDistance',
+    path: ['properties', 'prop_usable', 'smartsEntryPoints', 'SandStorage', 'checkers', 'UsableCheckerDistance'],
+    field: 'distance', labelKey: 'sandOperatingDistance', groupKey: 'workEquipment', unit: 'm',
+    factors: [1.25, 1.5, 2], safeFactors: [0.75, 1.5], absoluteRange: [20, 300],
+    linkedParameters: [
+      { path: ['properties', 'prop_usable', 'smartsEntryPoints', 'SandStorage'], field: 'focusDistance' },
+      { path: ['properties', 'prop_truck_mobile_sand_screen'], field: 'sandDistance' }
+    ]
   }
 ]
 
@@ -767,6 +788,18 @@ export class RoadCraftService {
   private replaceLinkedParameterValues(source: string, spec: ParameterSpec, value: ParameterValue) {
     for (const path of spec.linkedPaths ?? []) {
       const linkedSpec: ParameterSpec = { ...spec, path, linkedPaths: undefined }
+      if (this.readParameterValue(source, linkedSpec) !== undefined) {
+        source = this.replaceParameterValue(source, linkedSpec, value)
+      }
+    }
+    for (const linked of spec.linkedParameters ?? []) {
+      const linkedSpec: ParameterSpec = {
+        ...spec,
+        path: linked.path,
+        field: linked.field,
+        linkedPaths: undefined,
+        linkedParameters: undefined
+      }
       if (this.readParameterValue(source, linkedSpec) !== undefined) {
         source = this.replaceParameterValue(source, linkedSpec, value)
       }
