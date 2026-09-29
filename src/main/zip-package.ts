@@ -12,6 +12,52 @@ export interface TextArchiveEntry {
   modifiedAt: number
 }
 
+export interface BinaryArchiveEntry {
+  entryName: string
+  content: Buffer
+  modifiedAt: number
+}
+
+export async function readMatchingBinaryEntries(
+  archivePath: string,
+  matches: (entryName: string) => boolean,
+  maximumEntrySize = 20 * 1024 * 1024
+): Promise<BinaryArchiveEntry[]> {
+  const archive = await openPromise(archivePath, {
+    lazyEntries: true,
+    decodeStrings: true,
+    validateEntrySizes: true,
+    strictFileNames: true
+  })
+  const result: BinaryArchiveEntry[] = []
+
+  try {
+    for await (const entry of archive.eachEntry()) {
+      if (entry.fileName.endsWith('/')
+        || entry.uncompressedSize > maximumEntrySize
+        || !matches(entry.fileName)
+      ) continue
+
+      const stream = await archive.openReadStreamPromise(entry)
+      const chunks: Buffer[] = []
+
+      for await (const chunk of stream) {
+        chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk))
+      }
+
+      result.push({
+        entryName: entry.fileName,
+        content: Buffer.concat(chunks),
+        modifiedAt: entry.getLastModDate().getTime()
+      })
+    }
+  } finally {
+    if (archive.isOpen) archive.close()
+  }
+
+  return result
+}
+
 export async function readMatchingTextEntries(
   archivePath: string,
   matches: (entryName: string) => boolean

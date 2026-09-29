@@ -13,12 +13,15 @@ parámetros seleccionados sin salir de límites conservadores.
 - Biblioteca separada para vehículos, tráilers, llantas, recursos y elementos modificados.
 - Detección automática de nuevos `.cls` y `.bro` al iniciar y con **Buscar de nuevo**.
 - Valores original y actual, con recomendaciones **Poco**, **Medio** y **Alto**.
-- Rangos protegidos para motor, combustible, suspensión, transmisión, dirección y llantas.
+- Rangos protegidos para par y respuesta del motor, combustible, frenos, suspensión,
+  transmisión, dirección, tracción, bloqueo de diferencial y dimensiones reales de llantas.
 - Copia completa de seguridad del `.pak` antes de la primera modificación y una nueva
   copia cuando RoadCraft o un mod externo reemplazan el paquete.
 - Reconstrucción verificada del paquete y eliminación segura de `default_other.pak.cache`.
 - Restauración del valor original desde la propia aplicación.
-- Imagen automática compatible o imagen personalizada por mod.
+- Carátulas oficiales extraídas localmente de `ui_shop_*.pct_mip`; las configuraciones
+  especiales sin carátula propia se identifican como imagen relacionada.
+- Imagen personalizada de mods leída desde `uiCustomShopIcon` o `uiCustomIcon` del `.bro`.
 - Acceso al Mod Editor oficial de RoadCraft para construir el paquete `.pak`.
 - Interfaz disponible en los 15 idiomas compatibles con RoadCraft; español e inglés
   incluyen la traducción completa y el resto usan traducciones principales con respaldo en inglés.

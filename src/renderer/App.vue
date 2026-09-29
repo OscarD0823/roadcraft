@@ -119,6 +119,7 @@
               </div>
               <span v-if="entry.modified" class="edited-badge">✎ {{ t('edited') }}</span>
               <span class="kind-badge">{{ t(kindLabel(entry.kind)) }}</span>
+              <span v-if="entry.imageKind" class="image-badge">{{ t(`${entry.imageKind}Image`) }}</span>
             </div>
             <div class="content-card__body">
               <strong>{{ entry.name }}</strong>
@@ -165,9 +166,9 @@
           <article v-for="parameter in group.parameters" :key="parameter.id" class="parameter-card">
             <div class="parameter-card__title">
               <strong>{{ t(parameter.labelKey) }}</strong>
-              <span>{{ t('original') }}: {{ parameter.original }} {{ parameter.unit }}</span>
+              <span>{{ t('original') }}: {{ displayValue(parameter, parameter.original) }}</span>
             </div>
-            <div class="value-row">
+            <div v-if="parameter.kind === 'number'" class="value-row">
               <label>
                 <span>{{ t('current') }}</span>
                 <input
@@ -180,7 +181,21 @@
               </label>
               <span class="unit">{{ parameter.unit }}</span>
             </div>
-            <div class="recommendations">
+            <div v-else-if="parameter.kind === 'select'" class="value-row">
+              <label>
+                <span>{{ t('current') }}</span>
+                <select v-model="draftValues[parameter.id]">
+                  <option v-for="option in parameter.options" :key="option.value" :value="option.value">
+                    {{ t(option.labelKey) }}
+                  </option>
+                </select>
+              </label>
+            </div>
+            <label v-else class="boolean-row">
+              <input v-model="draftValues[parameter.id]" type="checkbox">
+              <span>{{ draftValues[parameter.id] ? t('enabled') : t('disabled') }}</span>
+            </label>
+            <div v-if="parameter.recommended" class="recommendations">
               <button @click="applyRecommendation(parameter.id, parameter.recommended.low)">
                 <small>{{ t('low') }}</small><strong>{{ parameter.recommended.low }}</strong>
               </button>
@@ -191,7 +206,7 @@
                 <small>{{ t('high') }}</small><strong>{{ parameter.recommended.high }}</strong>
               </button>
             </div>
-            <div class="range-label">
+            <div v-if="parameter.minimum !== undefined && parameter.maximum !== undefined" class="range-label">
               {{ t('safeRange') }}: {{ round(parameter.minimum) }} – {{ round(parameter.maximum) }}
             </div>
           </article>
@@ -217,7 +232,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
-import type { ContentEntry, ContentKind, EditableParameter, ScanResult } from '../shared'
+import type { ContentEntry, ContentKind, EditableParameter, ParameterValue, ScanResult } from '../shared'
 import { locales, translate } from './i18n'
 
 type View = 'all' | 'truck' | 'trailer' | 'wheel' | 'modified' | 'other'
@@ -230,7 +245,7 @@ const loading = ref(false)
 const saving = ref(false)
 const scanResult = ref<ScanResult>()
 const selectedId = ref<string>()
-const draftValues = reactive<Record<string, number>>({})
+const draftValues = reactive<Record<string, ParameterValue>>({})
 const toast = ref<{ type: 'success' | 'error'; message: string }>()
 
 const selectedEntry = computed(() => scanResult.value?.entries.find(entry => entry.id === selectedId.value))
@@ -381,6 +396,15 @@ function formatTime(timestamp: number) {
 
 function round(value: number) {
   return Number(value.toFixed(4))
+}
+
+function displayValue(parameter: EditableParameter, value: ParameterValue) {
+  if (typeof value === 'boolean') return t(value ? 'enabled' : 'disabled')
+  if (parameter.kind === 'select') {
+    const option = parameter.options?.find(item => item.value === value)
+    return option ? t(option.labelKey) : String(value)
+  }
+  return `${value}${parameter.unit ? ` ${parameter.unit}` : ''}`
 }
 
 function kindLabel(kind: ContentKind) {

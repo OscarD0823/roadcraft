@@ -1,6 +1,8 @@
 export type ContentKind = 'truck' | 'trailer' | 'wheel' | 'other'
 export type ContentSource = 'bro' | 'pak'
 export type RecommendationLevel = 'low' | 'medium' | 'high'
+export type ParameterValue = number | string | boolean
+export type ParameterKind = 'number' | 'boolean' | 'select'
 
 export interface RecommendedValues {
   low: number
@@ -12,12 +14,14 @@ export interface EditableParameter {
   id: string
   labelKey: string
   groupKey: string
-  value: number
-  original: number
+  kind: ParameterKind
+  value: ParameterValue
+  original: ParameterValue
   unit?: string
-  minimum: number
-  maximum: number
-  recommended: RecommendedValues
+  minimum?: number
+  maximum?: number
+  recommended?: RecommendedValues
+  options?: Array<{ value: string; labelKey: string }>
 }
 
 export interface ContentEntry {
@@ -32,6 +36,7 @@ export interface ContentEntry {
   modified: boolean
   modifiedAt: number
   imageUrl?: string
+  imageKind?: 'custom' | 'shop' | 'related' | 'mod'
   parameters: EditableParameter[]
 }
 
@@ -45,7 +50,7 @@ export interface ScanResult {
 
 export interface SavePayload {
   filePath: string
-  values: Record<string, number>
+  values: Record<string, ParameterValue>
 }
 
 export interface OperationResult {
