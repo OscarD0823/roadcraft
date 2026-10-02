@@ -1,13 +1,18 @@
 import { app, BrowserWindow, ipcMain } from 'electron'
 import squirrelStartup from 'electron-squirrel-startup'
 import { UpdateSourceType, updateElectronApp } from 'update-electron-app'
-import { dirname, join } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
+import { mkdirSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import type { SaveGameChanges, SavePayload } from '../shared'
 import { RoadCraftService } from './roadcraft'
 
 const currentDir = dirname(fileURLToPath(import.meta.url))
 let mainWindow: BrowserWindow | undefined
+if (process.env.ROADCRAFT_DATA_ROOT) {
+  const dataRoot = resolve(process.env.ROADCRAFT_DATA_ROOT)
+  mkdirSync(dataRoot, { recursive: true }); app.setPath('userData', dataRoot)
+}
 
 if (squirrelStartup) {
   app.quit()
@@ -49,6 +54,7 @@ if (squirrelStartup) {
 }
 
 function registerHandlers(service: RoadCraftService) {
+  ipcMain.handle('roadcraft:get-preview', (_event, id: string) => service.getPreview(id))
   ipcMain.handle('roadcraft:get-settings', () => service.getSettings())
   ipcMain.handle('roadcraft:scan', () => service.scan())
   ipcMain.handle('roadcraft:choose-install', () => service.chooseInstall())

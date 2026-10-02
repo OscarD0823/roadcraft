@@ -8,7 +8,7 @@
           <span>v{{ appVersion }}</span>
         </div>
       </div>
-
+      <StartupJourney loop class="workspace-journey" />
       <div class="topbar__actions">
         <label class="language-select" :title="t('language')">
           <span>🌐</span>
@@ -128,6 +128,7 @@
             {{ selectedEntry.modified ? t('edited') : selectedEntry.sourceType === 'pak' ? t('basePackage') : '.bro' }}
           </span>
         </div>
+        <VehicleDrive :key="selectedEntry.id" :entry="selectedEntry" :t="t" />
 
         <div class="file-actions">
           <button @click="chooseImage">🖼 {{ t('chooseImage') }}</button>
@@ -357,6 +358,8 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import type { ContentEntry, ContentKind, EditableParameter, ParameterValue, SaveGameData, SaveSlotSummary, ScanResult } from '../shared'
 import { locales, translate } from './i18n'
+import StartupJourney from './components/startup-journey.vue'
+import VehicleDrive from './components/vehicle-drive.vue'
 
 type View = 'all' | 'truck' | 'trailer' | 'ai' | 'modified' | 'other' | 'save'
 type SaveSection = 'stats' | 'trucks' | 'maps'

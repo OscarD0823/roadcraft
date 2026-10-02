@@ -110,6 +110,7 @@ export interface SaveGameChanges {
 }
 
 export interface RoadCraftApi {
+  getPreview(id: string): Promise<{ modelUrl: string; textures: Record<string, string>; materials: Record<string, { albedo?: string; normal?: string; transparent: boolean }>; wheelUrl?: string } | undefined>
   getSettings(): Promise<{ installPath: string; locale: string; version: string }>
   scan(): Promise<ScanResult>
   chooseInstall(): Promise<ScanResult | undefined>

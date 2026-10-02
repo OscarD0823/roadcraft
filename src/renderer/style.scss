@@ -51,6 +51,9 @@ button { cursor: pointer; }
   box-shadow: 0 6px 20px rgba(10, 18, 32, 0.16);
 }
 
+.workspace-journey { flex: 0 1 240px; width: min(240px, 25%); height: 54px; margin-inline: auto; border-radius: 9px !important; }
+.workspace-journey svg { width: 100%; height: 100%; object-fit: cover; }
+
 .brand {
   display: flex;
   align-items: center;

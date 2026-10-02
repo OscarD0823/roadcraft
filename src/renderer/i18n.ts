@@ -17,6 +17,8 @@ export const locales = [
 ]
 
 const en: Record<string, string> = {
+  vehicleView: 'Vehicle view', terrain: 'Terrain', terrain_auto: 'Automatic route', terrain_construction: 'Construction', terrain_asphalt: 'Asphalt', terrain_mud: 'Mud', terrain_forest: 'Forest', terrain_rock: 'Rock',
+  originalSourceModel: 'Original source model · 3D view', loadingModel: 'Reading the local model…', coverNot3d: 'Vehicle cover · not a 3D model', viewOnly: 'Visual preview only. Does not simulate the game physics. Compiled TPL models are not supported yet.',
   appSubtitle: 'Safe vehicle mod workspace',
   vehicles: 'Vehicles', trailers: 'Trailers', aiVehicles: 'AI units', modified: 'Edited', other: 'Other', all: 'All',
   scan: 'Scan again', openFolder: 'Open source folder', openEditor: 'Open Mod Editor', changePath: 'Change game folder',
@@ -61,6 +63,8 @@ const en: Record<string, string> = {
 
 const es: Record<string, string> = {
   ...en,
+  vehicleView: 'Vista del vehículo', terrain: 'Terreno', terrain_auto: 'Ruta automática', terrain_construction: 'Obras', terrain_asphalt: 'Asfalto', terrain_mud: 'Barro', terrain_forest: 'Bosque', terrain_rock: 'Rocas',
+  originalSourceModel: 'Modelo fuente original · vista 3D', loadingModel: 'Leyendo el modelo local…', coverNot3d: 'Carátula del vehículo · no es un modelo 3D', viewOnly: 'Solo vista previa. No simula la física del juego. Los modelos TPL compilados aún no son compatibles.',
   appSubtitle: '',
   vehicles: 'Vehículos', trailers: 'Tráilers', aiVehicles: 'Uso de IA', modified: 'Modificados', other: 'Otros', all: 'Todos',
   scan: 'Buscar de nuevo', openFolder: 'Abrir archivos fuente', openEditor: 'Abrir Mod Editor', changePath: 'Cambiar carpeta del juego',

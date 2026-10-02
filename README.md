@@ -1,6 +1,14 @@
 # RoadCraft Studio
 
-## Versión 0.5.2
+## Versión 0.6.0
+
+- Animación integrada en la cabecera del programa.
+- Vista del vehículo dentro del inspector, con pausa y terrenos automáticos o manuales.
+- Lectura de modelos fuente FBX y materiales del editor oficial cuando están presentes.
+- Las unidades del catálogo base con TPL compilado mantienen su imagen original sobre el recorrido animado; todavía no se presentan como modelos 3D compatibles.
+- Distribución y actualizaciones exclusivamente por GitHub. No se incluyen modelos ni texturas del juego en el instalador.
+
+La escena es una previsualización propia, no el motor ni la física de RoadCraft. Los ajustes de motor no deforman el vehículo. Cambiar parámetros funcionales no implica modificar el modelo visual.
 
 - Permite configurar hasta 1.000 m el ancho funcional de pavimentadoras, rodillos, topadoras y volquetes sin escalar el modelo visual.
 - Mantiene sincronizadas las zonas principal, trasera y delantera de trabajo de los rodillos.

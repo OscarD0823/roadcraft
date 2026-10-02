@@ -358,6 +358,39 @@ export class RoadCraftService {
     await this.persistSettings()
   }
 
+  async getPreview(id: string) {
+    const item = this.catalog.get(id)
+    if (!item || item.sourceType !== 'bro') return
+    const root = join(this.settings.installPath, 'root', 'mods_source')
+    const source = await readFile(item.sourcePath, 'utf8')
+    const ref = this.readStringValue(source, [], 'tpl')
+    if (!ref || !/^[a-z0-9_-]{1,150}$/i.test(ref)) return
+    const fbx = join(root, 'models', 'mods', ref + '.tpl.asset', ref + '.fbx')
+    if (!existsSync(fbx) || (await stat(fbx)).size > 64 * 1024 * 1024) return
+    const textures: Record<string, string> = {}
+    for (const path of await this.walkFiles(join(root, 'textures'), new Set(['.tga', '.png', '.jpg', '.dds']))) {
+      textures[basename(path).toLowerCase()] = pathToFileURL(path).href
+    }
+    const wheelRef = this.readStringValue(source, ['wheelPool', 'Wheel', 'wheel'], 'tpl')
+    const wheel = wheelRef && /^[a-z0-9_-]{1,150}$/i.test(wheelRef) ? join(root, 'models', 'mods', wheelRef + '.tpl.asset', wheelRef + '.fbx') : undefined
+    const materials: Record<string, { albedo?: string; normal?: string; transparent: boolean }> = {}
+    for (const name of [ref, wheelRef]) {
+      if (!name || !/^[a-z0-9_-]{1,150}$/i.test(name)) continue
+      const markupPath = join(root, 'models', 'mods', name + '.tpl.asset', name + '.tpl_markup')
+      if (!existsSync(markupPath)) continue
+      const markup = await readFile(markupPath, 'utf8')
+      for (const match of markup.matchAll(/([a-z0-9_]+)\s*=\s*\{\s*materialName\s*=\s*"([a-z0-9_-]+)"/gi)) {
+        const path = join(root, 'material_instances', match[2] + '.mi')
+        if (!existsSync(path)) continue
+        const definition = await readFile(path, 'utf8')
+        const albedo = /(?:texDiff|albedo)\s*=\s*"([a-z0-9_-]+)"/i.exec(definition)?.[1]
+        const normal = /(?:texNM|NM)\s*=\s*"([a-z0-9_-]+)"/i.exec(definition)?.[1]
+        materials[match[1]] = { albedo: albedo ? textures[albedo.toLowerCase() + '.tga'] : undefined, normal: normal ? textures[normal.toLowerCase() + '.tga'] : undefined, transparent: /glass/i.test(match[1]) }
+      }
+    }
+    return { modelUrl: pathToFileURL(fbx).href, textures, materials, wheelUrl: wheel && existsSync(wheel) ? pathToFileURL(wheel).href : undefined }
+  }
+
   async chooseInstall(): Promise<ScanResult | undefined> {
     const result = await dialog.showOpenDialog({
       title: 'Seleccionar la carpeta de RoadCraft',
