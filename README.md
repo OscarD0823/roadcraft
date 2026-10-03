@@ -1,6 +1,15 @@
 # RoadCraft Studio
 
-## Versión 0.6.0
+## Versión 0.7.0
+
+- Visor permanente en el lateral izquierdo y ajustes con desplazamiento independiente a la derecha, como en SnowRunner Studio.
+- Botones de guardar/restaurar siempre accesibles y distribución adaptada a ventanas de 600, 960 y 1366 píxeles.
+- Encuadre automático según el tamaño del panel; las grúas y vehículos altos no quedan recortados al dividir la pantalla.
+- Ruedas fuente con escala y orientación originales, montadas en sus puntos del FBX y girando sobre su eje real.
+- Materiales originales con mapas de color, normales, metal, rugosidad y oclusión; se ocultan colisiones, niveles de detalle alternativos y geometría auxiliar.
+- Encuadrar, pausar y cambiar terreno sin perder los valores que se están editando.
+
+La lectura de materiales y ruedas sigue las especificaciones del [SDK oficial de RoadCraft](https://roadcraft-modding.prismray.io/truck_modding/creating_textures/naming/) y sus [modelos de ruedas](https://roadcraft-modding.prismray.io/truck_modding/creating_3d_model/wheels/). El visor utiliza Three.js, no el motor del juego: materiales especiales de personalización o efectos exclusivos pueden diferir.
 
 - Animación integrada en la cabecera del programa.
 - Vista del vehículo dentro del inspector, con pausa y terrenos automáticos o manuales.

@@ -6,7 +6,7 @@ import { pathToFileURL } from 'node:url'
 import { execFile, spawn } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { promisify } from 'node:util'
-import type { ContentEntry, ContentKind, EditableParameter, OperationResult, ParameterKind, ParameterValue, SaveGameChanges, SaveGameData, SavePayload, SaveSlotSummary, ScanResult } from '../shared'
+import type { ContentEntry, ContentKind, EditableParameter, OperationResult, ParameterKind, ParameterValue, SaveGameChanges, SaveGameData, SavePayload, SaveSlotSummary, ScanResult, VehiclePreviewAsset, PreviewMaterial } from '../shared'
 import { applySaveGameChanges, createSaveGameData, decodeCompleteSave, encodeCompleteSave } from './save-game'
 import { readMatchingBinaryEntries, readMatchingTextEntries, replaceTextEntry, type TextArchiveEntry } from './zip-package'
 import { decodeRoadCraftShopTexture, decodeRoadCraftTexture } from './shop-texture'
@@ -358,7 +358,7 @@ export class RoadCraftService {
     await this.persistSettings()
   }
 
-  async getPreview(id: string) {
+  async getPreview(id: string): Promise<VehiclePreviewAsset | undefined> {
     const item = this.catalog.get(id)
     if (!item || item.sourceType !== 'bro') return
     const root = join(this.settings.installPath, 'root', 'mods_source')
@@ -368,12 +368,21 @@ export class RoadCraftService {
     const fbx = join(root, 'models', 'mods', ref + '.tpl.asset', ref + '.fbx')
     if (!existsSync(fbx) || (await stat(fbx)).size > 64 * 1024 * 1024) return
     const textures: Record<string, string> = {}
-    for (const path of await this.walkFiles(join(root, 'textures'), new Set(['.tga', '.png', '.jpg', '.dds']))) {
+    for (const path of await this.walkFiles(join(root, 'textures'), new Set(['.tga', '.png', '.jpg', '.jpeg', '.dds']))) {
       textures[basename(path).toLowerCase()] = pathToFileURL(path).href
     }
     const wheelRef = this.readStringValue(source, ['wheelPool', 'Wheel', 'wheel'], 'tpl')
     const wheel = wheelRef && /^[a-z0-9_-]{1,150}$/i.test(wheelRef) ? join(root, 'models', 'mods', wheelRef + '.tpl.asset', wheelRef + '.fbx') : undefined
-    const materials: Record<string, { albedo?: string; normal?: string; transparent: boolean }> = {}
+    const materials: Record<string, PreviewMaterial> = {}
+    const textureUrl = (name?: string) => name ? ['.tga','.dds','.png','.jpg','.jpeg'].map(ext=>textures[name.toLowerCase()+ext]).find(Boolean) : undefined
+    const importScale = async (name?: string) => {
+      if (!name || !/^[a-z0-9_-]{1,150}$/i.test(name)) return 1
+      const optionsPath = join(root,'models','mods',name+'.tpl.asset','export_options.ps')
+      if (!existsSync(optionsPath)) return 1
+      const options = await readFile(optionsPath,'utf8')
+      const value = this.readParameterValue(options,{id:'scale',path:['options','fbx'],field:'scale',labelKey:'',groupKey:''})
+      return typeof value==='number' && value>0 && value<=10000 ? value : 1
+    }
     for (const name of [ref, wheelRef]) {
       if (!name || !/^[a-z0-9_-]{1,150}$/i.test(name)) continue
       const markupPath = join(root, 'models', 'mods', name + '.tpl.asset', name + '.tpl_markup')
@@ -385,10 +394,14 @@ export class RoadCraftService {
         const definition = await readFile(path, 'utf8')
         const albedo = /(?:texDiff|albedo)\s*=\s*"([a-z0-9_-]+)"/i.exec(definition)?.[1]
         const normal = /(?:texNM|NM)\s*=\s*"([a-z0-9_-]+)"/i.exec(definition)?.[1]
-        materials[match[1]] = { albedo: albedo ? textures[albedo.toLowerCase() + '.tga'] : undefined, normal: normal ? textures[normal.toLowerCase() + '.tga'] : undefined, transparent: /glass/i.test(match[1]) }
+        const shading = /(?:texSpec|spec)\s*=\s*"([a-z0-9_-]+)"/i.exec(definition)?.[1]
+        const emissive = /(?:texEm|emissive)\s*=\s*"([a-z0-9_-]+)"/i.exec(definition)?.[1]
+        const type = /__type\s*=\s*"([a-z0-9_-]+)"/i.exec(definition)?.[1] ?? ''
+        materials[match[1]] = { albedo: textureUrl(albedo), normal: textureUrl(normal), shading: textureUrl(shading), emissive: textureUrl(emissive), type, transparent: /glass|transparent/i.test(type) }
       }
     }
-    return { modelUrl: pathToFileURL(fbx).href, textures, materials, wheelUrl: wheel && existsSync(wheel) ? pathToFileURL(wheel).href : undefined }
+    const scale = this.readParameterValue(source,{id:'scale',path:['wheelPool','Wheel'],field:'scale',labelKey:'',groupKey:''})
+    return { modelUrl: pathToFileURL(fbx).href, textures, materials, modelImportScale: await importScale(ref), wheelImportScale: await importScale(wheelRef), wheelScale: typeof scale==='number' && scale>0 && scale<=10 ? scale : 1, wheelUrl: wheel && existsSync(wheel) ? pathToFileURL(wheel).href : undefined }
   }
 
   async chooseInstall(): Promise<ScanResult | undefined> {

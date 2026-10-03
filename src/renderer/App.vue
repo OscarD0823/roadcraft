@@ -29,7 +29,7 @@
           :key="item.value"
           class="nav-button"
           :class="{ 'nav-button--active': view === item.value }"
-          @click="view = item.value"
+          @click="view = item.value; selectedId = undefined"
         >
           <span class="nav-button__icon">{{ item.icon }}</span>
           <span>{{ item.label }}</span>
@@ -65,7 +65,7 @@
     </section>
 
     <main v-if="view !== 'save'" class="main-shell" :class="{ 'main-shell--inspector': selectedEntry }">
-      <section class="library-panel">
+      <section v-show="!selectedEntry" class="library-panel">
         <div class="toolbar">
           <label class="search-box">
             <span>⌕</span>
@@ -119,7 +119,7 @@
             <h2>{{ selectedEntry.name }}</h2>
             <p>{{ selectedEntry.internalName }}</p>
           </div>
-          <button class="close-button" aria-label="Close" @click="selectedId = undefined">×</button>
+          <button class="button button--secondary" @click="selectedId = undefined">← {{ t('backToLibrary') }}</button>
         </div>
 
         <div class="inspector__meta">
@@ -128,13 +128,16 @@
             {{ selectedEntry.modified ? t('edited') : selectedEntry.sourceType === 'pak' ? t('basePackage') : '.bro' }}
           </span>
         </div>
-        <VehicleDrive :key="selectedEntry.id" :entry="selectedEntry" :t="t" />
-
-        <div class="file-actions">
-          <button @click="chooseImage">🖼 {{ t('chooseImage') }}</button>
-          <button @click="openFile">📄 {{ t('openFile') }}</button>
-        </div>
-
+        <div class="editor-workspace">
+          <section class="vehicle-preview" :aria-label="t('vehicleView')">
+            <VehicleDrive :key="selectedEntry.id" :entry="selectedEntry" :t="t" />
+            <div class="file-actions">
+              <button @click="chooseImage">🖼 {{ t('chooseImage') }}</button>
+              <button @click="openFile">📄 {{ t('openFile') }}</button>
+            </div>
+          </section>
+          <section class="inspector-settings" :aria-label="t('vehicleSettings')">
+            <div class="settings-scroll" tabindex="0">
         <div class="safe-notice">
           <strong>🛡 {{ t('safeRange') }}</strong>
           <span>{{ t(selectedEntry.sourceType === 'pak' ? 'pakSafeNotice' : 'safeNotice') }}</span>
@@ -195,6 +198,7 @@
           </article>
         </div>
 
+            </div>
         <div v-if="selectedEntry.parameters.length" class="inspector__footer">
           <button class="button button--secondary" :disabled="saving || !selectedEntry.modified" @click="restoreOriginal">
             {{ t('restore') }}
@@ -202,6 +206,8 @@
           <button class="button button--primary" :disabled="saving" @click="saveChanges">
             {{ saving ? t('saving') : t('save') }}
           </button>
+        </div>
+          </section>
         </div>
       </aside>
     </main>

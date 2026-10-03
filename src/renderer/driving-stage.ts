@@ -1,5 +1,7 @@
 import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js'
+import { fitVehicleCamera, visibleVehicleBounds, vehicleScreenRegion, sceneryOccludesVehicle } from './vehicle-framing'
 
 export type Terrain = 'auto' | 'forest' | 'mud' | 'snow' | 'rock' | 'construction' | 'asphalt'
 const palettes = {
@@ -31,34 +33,41 @@ export class DrivingStage {
   private inView = true
   private readonly visibility: IntersectionObserver
   private radius = .6
-  private height = 0
-  private lift = 0
-  private wheelScale = 1
-  private wheelUnits: Array<{ group: THREE.Group; base: THREE.Vector3 }> = []
+  private readonly scenery: Array<{ object: THREE.Object3D; sphere: THREE.Sphere }> = []
+  private readonly environment: THREE.WebGLRenderTarget
+  private readonly vehicleBounds = new THREE.Box3()
   private driven: Array<{ object: THREE.Object3D; rotation: THREE.Quaternion }> = []
-  setDrivenParts(parts: THREE.Object3D[]) { this.driven = parts.map(object => ({ object, rotation: object.quaternion.clone() })) }
+  setDrivenParts(parts: THREE.Object3D[], radius = .6) {
+    this.radius = Math.max(.15, radius)
+    this.driven = parts.map(object => ({ object, rotation: object.quaternion.clone() }))
+  }
 
   constructor(private readonly host: HTMLElement, private readonly roadcraft = false) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false })
     this.renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5))
     this.renderer.outputColorSpace = THREE.SRGBColorSpace
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping
-    this.renderer.toneMappingExposure = 1.1
+    this.renderer.toneMappingExposure = .95
     this.renderer.shadowMap.enabled = true
     this.renderer.shadowMap.type = THREE.PCFShadowMap
     host.append(this.renderer.domElement)
+    const pmrem = new THREE.PMREMGenerator(this.renderer), room = new RoomEnvironment()
+    this.environment = pmrem.fromScene(room, .04)
+    this.scene.environment = this.environment.texture
+    room.dispose(); pmrem.dispose()
     this.controls = new OrbitControls(this.camera, this.renderer.domElement)
     this.controls.enableDamping = true; this.controls.enablePan = false
     this.controls.minDistance = 3; this.controls.maxDistance = 35; this.controls.maxPolarAngle = Math.PI * .48
-    this.scene.add(this.vehicle, new THREE.HemisphereLight(0xe6efff, 0x685747, 2.1))
+    this.camera.position.set(8, 4, 11); this.controls.target.set(0, 1.5, 0); this.controls.update()
+    this.scene.add(this.vehicle, new THREE.HemisphereLight(0xe6efff, 0x685747, 1.1))
     this.vehicle.add(this.body, this.wheels)
-    const sunlight = new THREE.DirectionalLight(0xffead3, 3.6)
+    const sunlight = new THREE.DirectionalLight(0xffead3, 2.2)
     sunlight.position.set(10, 16, 8); sunlight.castShadow = true
     sunlight.shadow.mapSize.set(1024, 1024)
     Object.assign(sunlight.shadow.camera, { left: -12, right: 12, top: 12, bottom: -12, far: 70 })
     sunlight.shadow.bias = -.0004
     this.scene.add(sunlight)
-    const fill = new THREE.DirectionalLight(0xcbdde5, 1.2); fill.position.set(-8, 4, -9); this.scene.add(fill)
+    const fill = new THREE.DirectionalLight(0xcbdde5, .65); fill.position.set(-8, 4, -9); this.scene.add(fill)
     const ground = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), this.groundMaterial)
     ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; this.scene.add(ground, this.landscape, this.roadMarks)
     // Fixed seed keeps screenshots and transitions reproducible.
@@ -81,7 +90,9 @@ export class DrivingStage {
       const mountain = new THREE.Mesh(new THREE.ConeGeometry(7 + i % 4, 9 + i % 3 * 2, 5), new THREE.MeshStandardMaterial({ color: 0x677b7b, roughness: 1 }))
       mountain.position.set(i * 13 - 65, 3.4, (i % 2 ? -1 : 1) * 42)
       this.scene.add(mountain)
+      this.cacheScenery(mountain)
     }
+    for (const object of this.landscape.children) this.cacheScenery(object)
     this.scene.fog = new THREE.Fog(0xaec9d5, 25, 85)
     this.observer = new ResizeObserver(() => this.resize()); this.observer.observe(host)
     this.visibility = new IntersectionObserver(entries => { this.inView = entries[0].isIntersecting }, { threshold: .01 }); this.visibility.observe(host)
@@ -91,37 +102,42 @@ export class DrivingStage {
     const { width, height } = this.host.getBoundingClientRect()
     if (!width || !height) return
     this.renderer.setSize(width, height, false); this.camera.aspect = width / height; this.camera.updateProjectionMatrix()
+    if (this.body.children.length) this.fitCamera(this.camera.position.clone().sub(this.controls.target))
   }
   setBody(model: THREE.Object3D) {
     this.body.clear(); this.body.add(model)
     this.body.position.y = 0
-    const box = new THREE.Box3().setFromObject(this.vehicle), size = box.getSize(new THREE.Vector3()), center = box.getCenter(new THREE.Vector3())
-    this.height = Math.max(size.y, 1)
-    const distance = Math.max(size.length() * .9, 4)
-    this.camera.position.set(center.x + distance * .75, center.y + distance * .24, center.z + distance * .72)
-    this.controls.target.set(center.x, Math.max(center.y, this.height * .45), center.z); this.controls.update()
+    const box = visibleVehicleBounds(this.body)
+    this.body.position.y = -box.min.y + .03
+    this.fitCamera()
   }
-  setWheels(units: Array<{ model: THREE.Object3D; position: [number, number, number]; scale: number; right: boolean }>) {
-    this.wheels.clear(); this.wheelUnits = []
-    for (const unit of units) {
-      const group = new THREE.Group()
-      unit.model.scale.setScalar(unit.scale)
-      if (unit.right) unit.model.rotation.y = Math.PI
-      group.add(unit.model); group.position.fromArray(unit.position); this.wheels.add(group)
-      this.wheelUnits.push({ group, base: group.position.clone() })
-      this.radius = Math.max(.15, unit.scale)
+  private fitCamera(direction?: THREE.Vector3) {
+    const box = visibleVehicleBounds(this.vehicle)
+    if (box.isEmpty()) return
+    this.vehicleBounds.copy(box).applyMatrix4(this.vehicle.matrixWorld.clone().invert())
+    this.controls.target.copy(fitVehicleCamera(this.camera, box, direction))
+    const distance = this.camera.position.distanceTo(this.controls.target)
+    this.controls.minDistance = Math.max(1, box.getSize(new THREE.Vector3()).length() * .2)
+    this.controls.maxDistance = Math.max(35, distance * 2.5)
+    this.controls.update()
+    this.host.dataset.bounds = JSON.stringify(box.getSize(new THREE.Vector3()).toArray())
+    this.host.dataset.framed = String(this.isFramed(box))
+  }
+  private isFramed(box: THREE.Box3) {
+    for (const x of [box.min.x, box.max.x]) for (const y of [box.min.y, box.max.y]) for (const z of [box.min.z, box.max.z]) {
+      const p = new THREE.Vector3(x, y, z).project(this.camera)
+      if (Math.abs(p.x) >= 1 || Math.abs(p.y) >= 1 || Math.abs(p.z) >= 1) return false
     }
-    this.setAppearance(this.lift, this.wheelScale)
+    return true
   }
-  setAppearance(lift: number, scale = 1) {
-    this.lift = Math.min(Math.max(lift, -.5), 3); this.wheelScale = Math.min(Math.max(scale, .3), 4)
-    for (const unit of this.wheelUnits) {
-      unit.group.scale.setScalar(this.wheelScale)
-      unit.group.position.y = unit.base.y + this.radius * (this.wheelScale - 1)
-    }
-    this.body.position.y = this.lift + this.radius * (this.wheelScale - 1)
+  private cacheScenery(object: THREE.Object3D) {
+    object.updateWorldMatrix(true, true)
+    const sphere = new THREE.Box3().setFromObject(object).getBoundingSphere(new THREE.Sphere())
+    sphere.center.applyMatrix4(object.matrixWorld.clone().invert())
+    sphere.radius /= object.getWorldScale(new THREE.Vector3()).x
+    this.scenery.push({ object, sphere })
   }
-  resetCamera() { if (this.body.children[0]) this.setBody(this.body.children[0]) }
+  resetCamera() { if (this.body.children.length) this.fitCamera() }
   private animate = (now: number) => {
     if (this.disposed) return
     this.frame = requestAnimationFrame(this.animate)
@@ -142,9 +158,14 @@ export class DrivingStage {
     this.roadMarks.position.x = -(move % 3)
     this.vehicle.position.y = this.moving ? .02 * Math.sin(this.time * 5) : 0
     this.vehicle.rotation.z = this.moving ? .004 * Math.sin(this.time * 3) : 0
-    for (const unit of this.wheelUnits) unit.group.rotation.z = -move / this.radius
-    for (const part of this.driven) part.object.quaternion.copy(part.rotation).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), -move / this.radius))
-    this.controls.update(); this.renderer.render(this.scene, this.camera)
+    for (const part of this.driven) part.object.quaternion.copy(part.rotation).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -move / this.radius * Number(part.object.userData.rollSign ?? 1)))
+    this.controls.update()
+    if (this.body.children.length) {
+      this.scene.updateMatrixWorld(true)
+      const bounds = this.vehicleBounds.clone().applyMatrix4(this.vehicle.matrixWorld), region = vehicleScreenRegion(this.camera, bounds)
+      for (const { object, sphere } of this.scenery) object.visible = !sceneryOccludesVehicle(this.camera, region, sphere.clone().applyMatrix4(object.matrixWorld))
+    }
+    this.renderer.render(this.scene, this.camera)
     this.host.dataset.terrain = this.terrain === 'auto' ? sequence[index] : this.terrain
     this.host.dataset.frame = String(Math.floor(this.time * 10))
   }
@@ -158,6 +179,6 @@ export class DrivingStage {
       for (const m of Array.isArray(o.material) ? o.material : [o.material]) { materials.add(m); for (const value of Object.values(m)) if (value instanceof THREE.Texture) textures.add(value) }
     })
     geometries.forEach(g => g.dispose()); materials.forEach(m => m.dispose()); textures.forEach(t => t.dispose())
-    this.renderer.dispose(); this.renderer.forceContextLoss(); this.renderer.domElement.remove()
+    this.environment.dispose(); this.renderer.dispose(); this.renderer.forceContextLoss(); this.renderer.domElement.remove()
   }
 }

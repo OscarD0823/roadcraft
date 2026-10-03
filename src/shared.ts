@@ -109,8 +109,27 @@ export interface SaveGameChanges {
   maps: SaveMapState[]
 }
 
+export interface PreviewMaterial {
+  albedo?: string
+  normal?: string
+  shading?: string
+  emissive?: string
+  type: string
+  transparent: boolean
+}
+
+export interface VehiclePreviewAsset {
+  modelUrl: string
+  modelImportScale: number
+  textures: Record<string, string>
+  materials: Record<string, PreviewMaterial>
+  wheelUrl?: string
+  wheelImportScale: number
+  wheelScale: number
+}
+
 export interface RoadCraftApi {
-  getPreview(id: string): Promise<{ modelUrl: string; textures: Record<string, string>; materials: Record<string, { albedo?: string; normal?: string; transparent: boolean }>; wheelUrl?: string } | undefined>
+  getPreview(id: string): Promise<VehiclePreviewAsset | undefined>
   getSettings(): Promise<{ installPath: string; locale: string; version: string }>
   scan(): Promise<ScanResult>
   chooseInstall(): Promise<ScanResult | undefined>
