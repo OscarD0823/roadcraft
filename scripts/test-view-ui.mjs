@@ -4,6 +4,7 @@ import { promisify } from 'node:util'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import assert from 'node:assert/strict'
+import { createWriteStream } from 'node:fs'
 const root = dirname(dirname(fileURLToPath(import.meta.url))), output = join(root, 'out', 'qa-ui'), port = 9335
 await mkdir(output, { recursive: true })
 // Preserve this isolated cache across Vite builds; never use the user's settings.
@@ -16,7 +17,10 @@ try {await readFile(join(dataRoot,'settings.json'))}catch{
     await writeFile(join(dataRoot,'settings.json'),JSON.stringify(settings,null,2))
   }catch{}
 }
-const child = spawn(process.env.ROADCRAFT_APP_EXE ?? join(root, 'out', 'RoadCraft Studio-win32-x64', 'RoadCraft Studio.exe'), [`--remote-debugging-port=${port}`, `--user-data-dir=${join(output, 'data')}`], { stdio:'ignore', windowsHide:false, env: { ...process.env, ROADCRAFT_DATA_ROOT: join(output, 'data') } })
+const log=createWriteStream(join(output,'application.log'))
+const child = spawn(process.env.ROADCRAFT_APP_EXE ?? join(root, 'out', 'RoadCraft Studio-win32-x64', 'RoadCraft Studio.exe'), [`--remote-debugging-port=${port}`, `--user-data-dir=${join(output, 'data')}`], { stdio:['ignore','pipe','pipe'], windowsHide:false, env: { ...process.env, ROADCRAFT_DATA_ROOT: join(output, 'data') } })
+child.stdout.pipe(log,{end:false});child.stderr.pipe(log,{end:false})
+child.on('exit',(code,signal)=>{if(!log.writableEnded)log.end(`\nApplication exit: ${code} ${signal}\n`)})
 let socket
 try {
   let target
@@ -38,6 +42,7 @@ try {
     const request=pending.get(item.id); pending.delete(item.id)
     if(item.error) request?.reject(new Error(item.error.message)); else request?.resolve(item.result)
   })
+  socket.addEventListener('close',()=>{for(const request of pending.values())request.reject(new Error('Application debugging connection closed; inspect out/qa-ui/application.log'));pending.clear()})
   await new Promise(r=>socket.addEventListener('open',r,{once:true}))
   const call = (method,params={})=>new Promise((resolve,reject)=>{const id=++sequence;pending.set(id,{resolve,reject});socket.send(JSON.stringify({id,method,params}))})
   const evaluate = async expression=>{const result=await call('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true});if(result.exceptionDetails)throw new Error(result.exceptionDetails.exception?.description??result.exceptionDetails.text);return result.result.value}
@@ -137,6 +142,7 @@ try {
         assert.equal(await evaluate(`!!document.querySelector('.drive-cover')`),false,'Model/cover comparison did not return to 3D')
       }
       previews.push({id:entry.id,...preview})
+      await writeFile(join(output,'preview-progress.json'),JSON.stringify(previews,null,2))
       console.log('Preview verified: '+entry.internalName+' '+preview.state)
     }
   }

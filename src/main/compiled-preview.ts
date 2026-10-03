@@ -1,9 +1,9 @@
 import { openPromise, type Entry } from 'yauzl'
-import { mkdir, readFile, readdir, stat, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, readdir, stat, writeFile, rename, rm } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { createHash } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { gzip, gunzip } from 'node:zlib'
 import { promisify } from 'node:util'
 import * as THREE from 'three'
@@ -68,6 +68,11 @@ export class CompiledPreviewStore {
     if ((await stat(path)).size > 64 * 1024 * 1024) throw new Error('Source model exceeds preview limit')
     return readFile(path)
   }
+  private async writeCache(target: string, content: Buffer) {
+    const temporary = target + '.' + randomUUID() + '.tmp'
+    try { await writeFile(temporary, content); await rename(temporary, target) }
+    finally { await rm(temporary, { force: true }) }
+  }
   private async texture(name: string) {
     const descriptor = this.descriptors.get(name.toLowerCase())
     if (!descriptor) return
@@ -92,7 +97,7 @@ export class CompiledPreviewStore {
       const x = rgba[i] / 127.5 - 1, y = rgba[i + 1] / 127.5 - 1
       rgba[i + 2] = Math.round((Math.sqrt(Math.max(0, 1 - x * x - y * y)) + 1) * 127.5); rgba[i + 3] = 255
     }
-    await writeFile(target, Buffer.from(makePNG(rgba, width, height)))
+    await this.writeCache(target, Buffer.from(makePNG(rgba, width, height)))
     return pathToFileURL(target).href
   }
   get(name: string, sourceDirectory?: string, wheels: WheelSlot[] = []) {
@@ -146,7 +151,7 @@ export class CompiledPreviewStore {
     const size = new THREE.Box3().setFromObject(model).getSize(new THREE.Vector3())
     if (!size.toArray().every(value => value > .1 && value < 150)) throw new Error('TPL dimensions outside preview limits')
     const target = join(this.cacheRoot, createHash('sha1').update(tpl).update(data).update(JSON.stringify(wheels)).update(JSON.stringify(wheelVersions)).update('geometry-v5').digest('hex') + '.json.gz')
-    if (!existsSync(target)) await writeFile(target, await compress(JSON.stringify(model.toJSON())))
+    if (!existsSync(target)) await this.writeCache(target, await compress(JSON.stringify(model.toJSON())))
     model.traverse(object => { if (object instanceof THREE.Mesh) { object.geometry.dispose(); (object.material as THREE.Material).dispose() } })
     return { format: 'tpl', modelEncoding: 'gzip-json', modelUrl: pathToFileURL(target).href, modelImportScale: 1, wheelImportScale: 1, wheelScale: 1, textures: {}, materials }
   }
