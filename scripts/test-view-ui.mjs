@@ -43,6 +43,9 @@ try {
   const evaluate = async expression=>{const result=await call('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true});if(result.exceptionDetails)throw new Error(result.exceptionDetails.exception?.description??result.exceptionDetails.text);return result.result.value}
   const wait = async expression=>{for(let i=0;i<1200;i++){if(await evaluate(expression))return;await new Promise(r=>setTimeout(r,200))}throw new Error('UI wait timed out: '+expression+' '+warnings.join('; '))}
   await call('Runtime.enable'); await call('Page.enable')
+  // An occluded native window otherwise suspends its animation frames during QA.
+  await call('Emulation.setFocusEmulationEnabled',{enabled:true})
+  await call('Page.bringToFront')
   await wait('document.querySelectorAll(".content-card").length > 80')
   const {stdout}=await promisify(execFile)('powershell.exe',['-NoProfile','-NonInteractive','-Command',`Get-Process -Id ${child.pid} | ForEach-Object { [pscustomobject]@{Visible=($_.MainWindowHandle -ne 0);Title=$_.MainWindowTitle} } | ConvertTo-Json -Compress`],{windowsHide:true})
   const nativeWindow=JSON.parse(stdout.trim())
@@ -70,6 +73,7 @@ try {
   const found=await evaluate('(()=>{const c=[...document.querySelectorAll(".content-card")].find(c=>c.textContent.includes("aramatsu_crayfish_wood_grapple_mod.bro"));c?.click();return !!c})()')
   if(!found)throw new Error('Missing official FBX source vehicle')
   await wait('document.querySelector(".vehicle-drive")?.dataset.modelState === "ready"')
+  await wait('!!document.querySelector(".drive-scene")?.dataset.frame')
   await new Promise(r=>setTimeout(r,1000))
   shot=await call('Page.captureScreenshot',{format:'png'});await writeFile(join(output,'source-fbx.png'),Buffer.from(shot.data,'base64'))
   const source=await evaluate('({state:document.querySelector(".vehicle-drive").dataset.modelState,canvas:!!document.querySelector(".drive-scene canvas"),title:document.querySelector(".inspector h2").textContent})')
