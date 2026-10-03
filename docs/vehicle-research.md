@@ -29,6 +29,16 @@ Se estudiaron nombres de propiedades y formatos binarios con [LibSaber](https://
 
 No es el motor de RoadCraft. Algunos materiales especiales, orugas continuas, tintes personalizables y animaciones de equipos no se reproducen íntegramente. Si un modelo no es compatible, se conserva la imagen como alternativa y se indica que es una carátula, no un modelo 3D.
 
+### Correcciones de apariencia 0.8.1
+
+Las coordenadas V compiladas son `1 - V` de la fuente FBX; se desactiva el volteo de PNG para TPL. Las ruedas físicas necesitan la proporción `radius / geomRadius`, mientras que los rodillos auxiliares usan `prop_truck_visual_wheel.scale`. Las listas `visualWheelSlots` no están en `wheelSlotWithDescs` y también deben ensamblarse. Los eslabones de `prop_truck_track.tracks[].section.tpl` se repiten sobre el contorno de los rodillos; `segmentBones` determina cuántos eslabones contiene la fuente. Es una aproximación de reposo sin sag ni suspensión del motor original.
+
+Los volúmenes `_load_volume` y `_load_border_*` no son chapa de la carrocería. Las superficies skinned sustituidas por splits compilados tampoco se deben dibujar dos veces. Las plantillas `.td` contienen `tintByMask` y `customization`, que complementan los albedos grises; se leen sus máscaras y los tintes de la biblioteca de presets local.
+
+Los splits compilados rígidos pueden tener un stream separado de índices de hueso (flag 9 sin pesos). Sus posiciones necesitan el `matrLT` del hueso referenciado, no el del mesh agregado. En Greenway, dos indicadores de cabina se dibujaban bajo el suelo y distorsionaban los límites del vehículo. Las superficies ponderadas conservan su pose de reposo exportada, sin aplicar otra transformación rígida. Las orugas se orientan con la dirección entre sus propios `segmentBones`: el Dragline usa +Z, a diferencia del -X de Bowhead/Greenway.
+
+`TruckInputConfiguration.isStaticTruck = True` distingue maquinaria fija sin usar una búsqueda genérica de «crane». Los tags `UID_MODULE_RAILROAD_CRANE` y `UID_MODULE_TOWER_CRANE_RAILED` se muestran como equipos ferroviarios y tampoco se animan circulando por carretera. En esta instalación se identificaron cinco configuraciones fijas/ferroviarias. El eje longitudinal de las fuentes comprobadas es +Z; hacer avanzar el terreno por X producía conducción lateral.
+
 ## Interfaz
 
 Los parámetros de vehículos, tráilers e IA se agrupan en pestañas independientes. Cambiar de pestaña no guarda ni descarta los cambios pendientes. El visor permanece junto al panel de ajustes. La animación original del logo representa explorador → volquete descargando arena → dozer → asfaltadora → rodillo → camión de carga; el explorador espera y se retira al final. Se respeta la preferencia de movimiento reducido.

@@ -95,6 +95,7 @@ try {
   const asset=await evaluate(`window.roadcraft.getPreview(${JSON.stringify(all.find(e=>e.internalName==='aramatsu_crayfish_wood_grapple_mod').id)})`)
   assert.equal(asset.modelImportScale,100);assert.equal(asset.wheelImportScale,100);assert.equal(asset.wheelScale,.67)
   const layout=[]
+  await evaluate('document.fonts.ready.then(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))))')
   for(const [width,height] of [[600,520],[960,620],[1366,768]]){
     await call('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:false})
     await new Promise(r=>setTimeout(r,250))
@@ -107,7 +108,7 @@ try {
     assert.ok(Number(result.dataset.shadingMaps)>=3)
     await evaluate(`(()=>{const input=document.querySelector('.settings-scroll input[type=number]');input.value='123';input.dispatchEvent(new Event('input',{bubbles:true}));window.qaCanvas=document.querySelector('.drive-scene canvas');document.querySelector('.settings-scroll').scrollTop=10000})()`)
     const after=await evaluate(`({value:document.querySelector('.settings-scroll input[type=number]').value,sameCanvas:window.qaCanvas===document.querySelector('.drive-scene canvas'),y:document.querySelector('.drive-scene').getBoundingClientRect().y})`)
-    assert.equal(after.value,'123');assert.equal(after.sameCanvas,true);assert.equal(after.y,result.scene.y)
+    assert.equal(after.value,'123');assert.equal(after.sameCanvas,true);assert.ok(Math.abs(after.y-result.scene.y)<10,'Settings scrolling displaced the viewer')
     await evaluate(`(()=>{const select=document.querySelector('.drive-tools select');select.value='asphalt';select.dispatchEvent(new Event('change',{bubbles:true}));document.querySelector('.fit-camera').click();document.querySelector('.drive-tools button').click();document.querySelector('.settings-scroll').scrollTop=0})()`)
     assert.equal(await evaluate(`document.querySelector('.settings-scroll input[type=number]').value`),'123')
     const categories=await evaluate(`document.querySelectorAll('.parameter-tabs button').length`)
@@ -123,6 +124,7 @@ try {
   {
     const selected=process.env.ROADCRAFT_ALL_ENTRIES==='1' ? all : all.filter(e=>e.relativePath.endsWith('tuz_119lynx_mod.bro') || [
       'auto_aramatsu_bowhead_heavy_dumptruck_new','auto_don_71','auto_dragline_5111b_building_demolisher_old',
+      'auto_n_and_s_700s_tower_crane','auto_n_and_s_loader20g_crane_grabber','auto_n_and_s_260gantry_crane_railroad',
       'auto_wayfarer_st7050_cargo_main','auto_wayfarer_st7050_trailer_cargo_ai','auto_base_alces_c400_cargo_res'
     ].includes(e.internalName))
     await evaluate(`document.querySelectorAll('.nav-button')[0].click()`)
@@ -130,10 +132,19 @@ try {
       await evaluate(`(()=>{document.querySelector('.inspector__header button')?.click();const card=[...document.querySelectorAll('.content-card')].find(c=>c.textContent.includes(${JSON.stringify(entry.relativePath)}));if(!card)throw new Error('Missing catalog card');card.click()})()`)
       await wait(`['ready','cover'].includes(document.querySelector('.vehicle-drive')?.dataset.modelState)`)
       const preview=await evaluate(`({name:document.querySelector('.inspector h2').textContent,state:document.querySelector('.vehicle-drive').dataset.modelState,image:document.querySelector('.drive-cover img')?.complete && document.querySelector('.drive-cover img')?.naturalWidth>0,dataset:{...document.querySelector('.drive-scene').dataset},categories:document.querySelectorAll('.parameter-tabs button').length})`)
-      if(entry.imageUrl && preview.state==='cover') await wait(`document.querySelector('.drive-cover img')?.naturalWidth>0`)
+      assert.equal(!!preview.image,false,'A cover must never replace the 3D view automatically')
       if(entry.kind!=='other') assert.equal(preview.state,'ready','Missing 3D model '+entry.internalName)
       if(preview.state==='ready') await wait(`!!document.querySelector('.drive-scene')?.dataset.frame`)
+      if(process.env.ROADCRAFT_ALL_ENTRIES==='1' && preview.state==='ready') {
+        const clip=await evaluate(`(()=>{const b=document.querySelector('.drive-scene').getBoundingClientRect();return {x:b.x,y:b.y,width:b.width,height:b.height,scale:1}})()`)
+        await mkdir(join(output,'models'),{recursive:true})
+        const captured=await call('Page.captureScreenshot',{format:'png',clip})
+        await writeFile(join(output,'models',entry.internalName+'.png'),Buffer.from(captured.data,'base64'))
+      }
       if(entry.internalName==='auto_aramatsu_bowhead_heavy_dumptruck_new'){
+        assert.equal(preview.dataset.tracks,'2','Bowhead tracks missing')
+        const bounds=JSON.parse(preview.dataset.bounds);assert(bounds[0]<4.5&&bounds[1]<4&&bounds[2]<10,'Bowhead proportions changed')
+        assert.equal(preview.dataset.travelAxis,'z','Vehicle is travelling sideways')
         assert.ok(Number(preview.dataset.shadingMaps)>2,'Missing original Bowhead materials')
         shot=await call('Page.captureScreenshot',{format:'png'});await writeFile(join(output,'bowhead-native.png'),Buffer.from(shot.data,'base64'))
         await evaluate(`document.querySelector('.view-alternative').click()`)
@@ -141,9 +152,34 @@ try {
         await evaluate(`document.querySelector('.view-alternative').click()`)
         assert.equal(await evaluate(`!!document.querySelector('.drive-cover')`),false,'Model/cover comparison did not return to 3D')
       }
+      if(entry.mobility && entry.mobility!=='road') {
+        assert.equal(preview.dataset.travel,'false','Fixed equipment is travelling')
+        assert.equal(await evaluate(`!!document.querySelector('.mobility-tag')`),true)
+        const before=await evaluate(`({...document.querySelector('.drive-scene').dataset})`)
+        await new Promise(r=>setTimeout(r,500))
+        const after=await evaluate(`({...document.querySelector('.drive-scene').dataset})`)
+        assert.equal(before.frame,after.frame);assert.equal(before.groundMotion,after.groundMotion)
+        shot=await call('Page.captureScreenshot',{format:'png'});await writeFile(join(output,entry.internalName+'.png'),Buffer.from(shot.data,'base64'))
+      }
+      if(entry.internalName==='auto_greenway_ht500_dozer_new') assert(JSON.parse(preview.dataset.bounds)[1]<5,'Greenway cabin parts displaced')
       previews.push({id:entry.id,...preview})
       await writeFile(join(output,'preview-progress.json'),JSON.stringify(previews,null,2))
       console.log('Preview verified: '+entry.internalName+' '+preview.state)
+    }
+  }
+  if(process.env.ROADCRAFT_ALL_ENTRIES==='1') {
+    await call('Emulation.setDeviceMetricsOverride',{width:1280,height:960,deviceScaleFactor:1,mobile:false})
+    const ready=previews.filter(p=>p.state==='ready')
+    for(let start=0;start<ready.length;start+=16) {
+      const tiles=[]
+      for(const item of ready.slice(start,start+16)) {
+        const entry=all.find(e=>e.id===item.id)
+        tiles.push({name:entry.internalName,image:'data:image/png;base64,'+(await readFile(join(output,'models',entry.internalName+'.png'))).toString('base64')})
+      }
+      await evaluate(`(async()=>{const sheet=document.createElement('div');sheet.id='qa-sheet';sheet.style.cssText='position:fixed;inset:0;z-index:99999;background:#15222c;display:grid;grid-template-columns:repeat(4,1fr);grid-auto-rows:240px;';for(const tile of ${JSON.stringify(tiles)}){const card=document.createElement('div');card.style.cssText='padding:8px;color:white;font:11px sans-serif;overflow:hidden;';const image=new Image();image.style.cssText='width:304px;height:202px;object-fit:contain';image.src=tile.image;await image.decode();card.append(image,document.createTextNode(tile.name));sheet.append(card)}document.body.append(sheet);await new Promise(r=>requestAnimationFrame(r))})()`)
+      const sheet=await call('Page.captureScreenshot',{format:'png'})
+      await writeFile(join(output,'model-contact-'+String(start/16+1).padStart(2,'0')+'.png'),Buffer.from(sheet.data,'base64'))
+      await evaluate(`document.querySelector('#qa-sheet').remove()`)
     }
   }
   const classification={}

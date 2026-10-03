@@ -12,7 +12,7 @@ assert.deepEqual(entries.filter(entry=>/\.(?:tpl(?:_data)?|pct(?:_mip)?|fbx|blen
 const main = entries.find(entry=>entry.replaceAll('\\','/').endsWith('/.vite/build/index.js'))
 assert(main,'Missing main bundle')
 const bundle=extractFile(archive,main.slice(1)).toString()
-assert(bundle.includes('geometry-v5'),'Installer package contains an outdated model reader')
+assert(bundle.includes('geometry-v9'),'Installer package contains an outdated model reader')
 assert(bundle.includes('Preview resource exceeds size limit'),'Installer package contains the old archive loader')
 const releases = (await readFile(join(root,'out/make/squirrel.windows/x64/RELEASES'),'utf8')).trim().split(/\s+/)
 const nupkg=join(root,'out/make/squirrel.windows/x64',releases[1])

@@ -2,8 +2,9 @@
   <section class="vehicle-drive" :data-model-state="state">
     <div class="drive-tools">
       <strong>{{ t('vehicleView') }}</strong>
-      <button v-if="entry.imageUrl && state === 'ready'" class="view-alternative" :aria-pressed="showCover" :title="t(showCover ? 'showModel' : 'showCover')" @click="showCover = !showCover">{{ t(showCover ? 'showModel' : 'showCover') }}</button>
-      <button :aria-label="t(moving ? 'pauseMotion' : 'resumeMotion')" :title="t(moving ? 'pauseMotion' : 'resumeMotion')" @click="toggleMotion">{{ moving ? 'Ⅱ' : '▶' }}</button>
+      <button v-if="entry.imageUrl && state !== 'loading'" class="view-alternative" :aria-pressed="showCover" :title="t(showCover ? 'showModel' : 'showCover')" @click="showCover = !showCover">{{ t(showCover ? 'showModel' : 'showCover') }}</button>
+      <span v-if="entry.mobility && entry.mobility !== 'road'" class="mobility-tag">{{ t('mobility_' + entry.mobility) }}</span>
+      <button v-else :aria-label="t(moving ? 'pauseMotion' : 'resumeMotion')" :title="t(moving ? 'pauseMotion' : 'resumeMotion')" @click="toggleMotion">{{ moving ? 'Ⅱ' : '▶' }}</button>
       <button class="fit-camera" :title="t('resetCamera')" :aria-label="t('resetCamera')" @click="stage?.resetCamera()">⤢</button>
       <select v-model="terrain" :aria-label="t('terrain')">
         <option v-for="item in ['auto', 'construction', 'asphalt', 'mud', 'forest', 'rock']" :key="item" :value="item">{{ t('terrain_' + item) }}</option>
@@ -11,11 +12,11 @@
     </div>
     <div ref="host" class="drive-scene" :class="{ 'drive-scene--cover': showCover }">
       <div v-if="state !== 'ready' || showCover" class="drive-cover" :class="{ 'drive-cover--moving': moving }">
-        <img v-if="entry.imageUrl && !imageFailed" :src="entry.imageUrl" :alt="entry.name" @error="imageFailed = true">
-        <span v-else>{{ entry.name }}<small>{{ t('noVehicleImage') }}</small></span>
+        <img v-if="showCover && entry.imageUrl && !imageFailed" :src="entry.imageUrl" :alt="entry.name" @error="imageFailed = true">
+        <span v-else class="model-status"><i v-if="state === 'loading'" class="model-spinner"/>{{ entry.name }}<small>{{ t(state === 'loading' ? 'loadingModel' : 'modelUnavailable') }}</small></span>
       </div>
     </div>
-    <p>{{ t(showCover ? 'coverNot3d' : state === 'ready' ? 'originalSourceModel' : state === 'loading' ? 'loadingModel' : 'coverNot3d') }}</p>
+    <p>{{ t(showCover ? 'coverNot3d' : state === 'ready' ? 'originalSourceModel' : state === 'loading' ? 'loadingModel' : 'modelUnavailable') }}</p>
     <small class="preview-note" :title="t('viewOnly')">{{ t('viewOnly') }}</small>
   </section>
 </template>
@@ -27,7 +28,7 @@ import { TGALoader } from 'three/addons/loaders/TGALoader.js'
 import { DDSLoader } from 'three/addons/loaders/DDSLoader.js'
 import type { ContentEntry } from '../../shared'
 import { DrivingStage, type Terrain } from '../driving-stage'
-import { fbxMetersScale, exteriorMesh, mountSourceWheel, configureRoadShading } from '../source-model'
+import { fbxMetersScale, exteriorMesh, mountSourceWheel, configureRoadShading, configureRoadPaint } from '../source-model'
 import { visibleVehicleBounds } from '../vehicle-framing'
 const props = defineProps<{ entry: ContentEntry; t: (key: string) => string }>()
 const host = ref<HTMLElement>(), state = ref('loading'), terrain = ref<Terrain>('auto')
@@ -42,6 +43,8 @@ watch(showCover, value => { if (stage) stage.moving = moving.value && !value })
 onMounted(async () => {
   try {
     stage = new DrivingStage(host.value!, true)
+    stage.canTravel = !props.entry.mobility || props.entry.mobility === 'road'
+    if (!stage.canTravel) { moving.value=false; terrain.value='construction';stage.terrain='construction' }
     const asset = await window.roadcraft.getPreview(props.entry.id)
     if (disposed) return
     if (!asset) { state.value = 'cover'; return }
@@ -69,6 +72,9 @@ onMounted(async () => {
         const loader = /\.tga$/i.test(url) ? new TGALoader() : /\.dds$/i.test(url) ? new DDSLoader() : new THREE.TextureLoader()
         const texture = await loader.loadAsync(url)
         texture.colorSpace = color ? THREE.SRGBColorSpace : THREE.NoColorSpace
+        // Compiled TPL UVs use a top-left origin (V = 1 - FBX V).
+        texture.flipY = asset!.format !== 'tpl'
+        texture.wrapS=texture.wrapT=THREE.RepeatWrapping
         maps.set(key, texture); loadedTextures.add(texture)
         if (disposed) texture.dispose()
       }
@@ -93,6 +99,8 @@ onMounted(async () => {
           if (def?.albedo) { m.map = await getTexture(def.albedo, true); m.color.set(0xffffff) }
           if (def?.normal) { m.normalMap = await getTexture(def.normal, false); m.normalScale.set(1, -1) }
           if (def?.shading) configureRoadShading(m, await getTexture(def.shading, false))
+          const tint=def?.paintable && asset!.paintColor ? asset!.paintColor : def?.tint
+          if(tint && m.map)configureRoadPaint(m,{tint,tintG:def?.tintG,mask:def?.tintMask?await getTexture(def.tintMask,false):undefined,albedoAlpha:def?.maskFromAlbedoAlpha})
           if (def?.emissive) { m.emissiveMap = await getTexture(def.emissive, true); m.emissive.set(0xffffff); m.emissiveIntensity = .5 }
           if (def?.transparent) { m.transparent = true; m.depthWrite = false; if (asset!.format === 'tpl') { m.opacity = .4; m.color.set(0x9cbdc9) } }
           if (/alphakill/i.test(def?.type ?? '')) m.alphaTest = .4
@@ -119,22 +127,24 @@ onMounted(async () => {
       for (const slot of slots) movingWheels.push(mountSourceWheel(model, wheel, slot, asset.wheelScale))
       const wheelSize = visibleVehicleBounds(wheel).getSize(new THREE.Vector3())
       const radius = Math.max(wheelSize.y, wheelSize.z) * fbxMetersScale(wheel) * asset.wheelScale / 2
-      stage.setDrivenParts(movingWheels, radius)
+      model.scale.multiplyScalar(fbxMetersScale(model))
+      if(stage.canTravel)stage.setDrivenParts(movingWheels, radius)
       host.value!.dataset.wheels = String(movingWheels.length)
       host.value!.dataset.wheelScale = String(asset.wheelScale)
     }
     if (asset.format === 'tpl') {
       const wheels: THREE.Object3D[] = []
       model.traverse(object => { if (object.userData.drivenWheel) wheels.push(object) })
-      if (wheels.length) stage.setDrivenParts(wheels, .55)
+      if (wheels.length && stage.canTravel) stage.setDrivenParts(wheels, .55)
       host.value!.dataset.wheels = String(wheels.length)
       host.value!.dataset.format = 'tpl'
-    } else model.scale.multiplyScalar(fbxMetersScale(model))
+      let tracks=0;model.traverse(o=>{if(o.userData.track)tracks++});host.value!.dataset.tracks=String(tracks)
+    } else if(!asset.wheelUrl) model.scale.multiplyScalar(fbxMetersScale(model))
     const size = visibleVehicleBounds(model).getSize(new THREE.Vector3())
     if (!size.toArray().every(n => Number.isFinite(n) && n > .1 && n < 100)) throw new Error('Invalid source model dimensions')
     host.value!.dataset.materials = String(materials.size)
     host.value!.dataset.shadingMaps = String([...materials.values()].filter(m => m instanceof THREE.MeshStandardMaterial && !!m.metalnessMap).length)
-    stage.setBody(model); state.value = 'ready'
+    stage.setBody(model); stage.moving=moving.value && !showCover.value; state.value = 'ready'
   } catch (error) { if (!disposed) { state.value = 'cover'; console.warn('Vista 3D:', error) } }
 })
 function toggleMotion() { moving.value = !moving.value; if (stage) stage.moving = moving.value && !showCover.value }
@@ -147,6 +157,11 @@ onBeforeUnmount(() => { disposed = true; stage?.dispose(); pendingModels.forEach
 .vehicle-drive { flex: 1 1 0; min-height: 0; min-width: 0; display: flex; flex-direction: column; margin: 0; border-radius: 13px; overflow: hidden; color: #cad8df; background: #13222c; container-type: inline-size; }
 .drive-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; padding: 9px 11px; font-size: 11px; }
 .drive-tools strong { margin-inline-end: auto; }
+.mobility-tag { padding:4px 7px;border-radius:6px;background:#314b58;color:#e8eff3; }
+.model-status { text-align:center;max-width:85%;font-size:12px; }
+.model-status small { color:#d6e1e6; }
+.model-spinner { display:block;margin:0 auto 14px;width:28px;height:28px;border:3px solid #405969;border-top-color:#ff882a;border-radius:50%;animation:model-spin .9s linear infinite; }
+@keyframes model-spin { to { transform:rotate(360deg) } }
 button, select { font: inherit; min-width: 0; max-width: 145px; padding: 4px 7px; border: 1px solid #536875; border-radius: 6px; color: #e8eff3; background: #213642; }
 .drive-scene { flex: 1 1 0; min-height: 90px; position: relative; overflow: hidden; }
 .drive-scene :deep(canvas) { display: block; width: 100%; height: 100%; touch-action: none; }

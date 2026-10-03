@@ -17,6 +17,7 @@ export const locales = [
 ]
 
 const en: Record<string, string> = {
+  mobility_stationary: 'Stationary equipment', mobility_rail: 'Rail-mounted equipment', modelUnavailable: 'No compatible 3D model. The original cover is available separately.',
   showModel: '3D model', showCover: 'Original cover',
   parameterSections: 'Parameter categories', control_player: 'Player configuration', control_ai: 'AI configuration', control_unknown: 'Unconfirmed use', rustyVariant: 'Rusty / old variant',
   obtain_shop: 'Shop configuration', obtain_scenario: 'Scenario / special variant', obtain_unknown: 'Availability not specified',
@@ -69,6 +70,7 @@ const en: Record<string, string> = {
 
 const es: Record<string, string> = {
   ...en,
+  mobility_stationary: 'Maquinaria fija', mobility_rail: 'Maquinaria sobre rieles', modelUnavailable: 'Sin modelo 3D compatible. La carátula original está disponible por separado.',
   showModel: 'Modelo 3D', showCover: 'Carátula original',
   parameterSections: 'Categorías de ajustes', control_player: 'Configuración de jugador', control_ai: 'Configuración de IA', control_unknown: 'Uso no confirmado', rustyVariant: 'Variante oxidada / old',
   obtain_shop: 'Configuración de tienda', obtain_scenario: 'Variante de escenario / especial', obtain_unknown: 'Disponibilidad no especificada',

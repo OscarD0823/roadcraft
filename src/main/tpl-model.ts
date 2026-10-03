@@ -55,11 +55,14 @@ export function decodeTplSurfaces(model: TplModel, data: Buffer): TplSurface[] {
   let totalVertices = 0
   for (const split of model.splits) {
     const node = model.nodes[split.node]
-    if (!node || /(?:^|_)cdt(?:$|_)|collision|(?:^|_)hp_|cutoff|physical|(?:^|_)sfx_|_lod[1-9]/i.test(node.name)) continue
+    if (!node || /(?:^|_)cdt(?:$|_)|collision|(?:^|_)hp_|cutoff|physical|(?:^|_)sfx_|_lod[1-9]|^_load_(?:volume|border)/i.test(node.name)) continue
+    // Extra baked splits already replace these skinned first-person/animated surfaces.
+    if (split.skin >= 0 && model.splits.some(s=>s.node === split.skin && s.skin < 0)) continue
     const mesh = model.meshes[split.mesh]
     if (!mesh) throw new Error('TPL split references missing mesh')
     const refs = mesh.streams.map(ref => ({ ref, stream: model.streams[ref.id] }))
     const vertices = refs.find(s => s.stream?.bits[0]), faces = refs.find(s => s.stream?.stride === 6 && !s.stream.bits.some(Boolean)), attributes = refs.find(s => s.stream?.bits[25])
+    const boneIndices=refs.find(s=>s.stream?.bits[9]), weights=refs.find(s=>s.stream?.bits[7])
     if (!vertices || !faces) throw new Error(`TPL ${node.name} is missing a geometry stream`)
     const f = vertices.stream.bits
     const packedNormal = f[45], floatNormal = f[10] && !f[11]
@@ -82,6 +85,27 @@ export function decodeTplSurfaces(model: TplModel, data: Buffer): TplSurface[] {
         if (f[9]) r.take(4) // Four byte-sized bone indices.
         if (f[67]) r.take(4)
         surface.normals.push(r.f32(), r.f32(), r.f32())
+      }
+      // Compiled rigid skin indices can be in a separate stream. These
+      // vertices are already in bone-local space: apply their indexed matrLT,
+      // not a guessed mesh transform or a second inverse bind matrix.
+      // Weighted surfaces retain their exported rest pose; only rigid,
+      // pre-transformed index streams need this extra bind transformation.
+      if(boneIndices && !weights) {
+        const skin=new TplReader(data),begin=boneIndices.stream.offset+boneIndices.ref.offset+(split.vertexOffset+i)*boneIndices.stream.stride+(boneIndices.stream.bits[0]?8:0)+(boneIndices.stream.bits[7]?4:0)
+        if(begin+4>boneIndices.stream.offset+boneIndices.stream.length)throw new Error('TPL bone range outside stream')
+        skin.offset=begin;const ids=Array.from({length:4},()=>skin.u8())
+        const id=split.bones?.[ids[0]]??ids[0],matrix=model.nodes[id]?.bindTransform
+        if(!matrix)throw new Error('TPL references missing bone transform')
+        const p=surface.positions.slice(-3),n=surface.normals.slice(-3),position=[0,0,0],normal=[0,0,0]
+        for(let axis=0;axis<3;axis++) {
+          position[axis]=matrix[axis]*p[0]+matrix[4+axis]*p[1]+matrix[8+axis]*p[2]+matrix[12+axis]
+          normal[axis]=matrix[axis]*n[0]+matrix[4+axis]*n[1]+matrix[8+axis]*n[2]
+        }
+        const normalLength=Math.hypot(...normal)||1
+        surface.positions.splice(surface.positions.length-3,3,...position)
+        surface.normals.splice(surface.normals.length-3,3,...normal.map(v=>v/normalLength))
+        surface.matrix=undefined
       }
       if (attributes) {
         const a = attributes.stream.bits

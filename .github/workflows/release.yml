@@ -30,6 +30,9 @@ jobs:
       - name: Validar límites del lector TPL
         run: npm run test:tpl
 
+      - name: Validar ensamblado y maquinaria fija
+        run: npm run test:appearance
+
       - name: Crear instalador
         run: npm run make
 

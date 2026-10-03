@@ -1,6 +1,14 @@
 # RoadCraft Studio
 
-## Versión 0.8.0
+## Versión 0.8.1
+
+- Corrige el movimiento lateral y respeta las cinco grúas fijas/ferroviarias de la instalación verificada.
+- Ensambla ruedas con sus escalas originales y completa rodillos y eslabones de oruga en reposo.
+- Corrige las texturas TPL invertidas y lee las máscaras locales de pintura.
+- Separa los materiales de cada modelo y mantiene visible el suelo bajo las grúas altas.
+- Oculta volúmenes de carga invisibles y superficies duplicadas. El editor no sustituye automáticamente el modelo por una carátula; esta queda como comparación opcional.
+
+### Catálogo y mejoras de 0.8.0
 
 - Catálogo completo de la instalación probada: 116 configuraciones de vehículo, 6 tráilers, 74 variantes de IA y un recurso adicional.
 - Detecta las clases `trucks/base/` usadas en rutas de IA; no confunde las versiones recuperadas `old` con estas copias.
@@ -11,7 +19,7 @@
 - Animación del logo con explorador, volquete descargando arena, dozer, asfaltadora, rodillo y camión final; el explorador se retira al terminar.
 - Una nueva búsqueda también renueva los índices de modelos y texturas.
 
-La [investigación y sus fuentes oficiales](docs/vehicle-research.md) explican cómo se determinan IA, tienda y variantes de misión. La vista 3D no es el motor del juego: orugas continuas, tintes y algunos materiales y animaciones especiales pueden diferir.
+La [investigación y sus fuentes oficiales](docs/vehicle-research.md) explican cómo se determinan IA, tienda y variantes de misión. La vista 3D no es el motor del juego: la deformación de las orugas, ciertos materiales y poses/animaciones de maquinaria pueden diferir. Que un modelo cargue no garantiza que sea visualmente idéntico al juego.
 
 ## Mejoras anteriores
 

@@ -37,6 +37,7 @@ export interface ContentEntry {
   modifiedAt: number
   imageUrl?: string
   imageKind?: 'custom' | 'shop' | 'related' | 'mod'
+  mobility?: 'road' | 'rail' | 'stationary'
   access?: {
     control: 'player' | 'ai' | 'unknown'
     variant: 'rusty' | 'standard'
@@ -123,6 +124,11 @@ export interface PreviewMaterial {
   emissive?: string
   type: string
   transparent: boolean
+  tintMask?: string
+  tint?: number[]
+  tintG?: number[]
+  maskFromAlbedoAlpha?: boolean
+  paintable?: boolean
 }
 
 export interface VehiclePreviewAsset {
@@ -135,6 +141,7 @@ export interface VehiclePreviewAsset {
   wheelUrl?: string
   wheelImportScale: number
   wheelScale: number
+  paintColor?: number[]
 }
 
 export interface RoadCraftApi {

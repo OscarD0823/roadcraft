@@ -12,6 +12,7 @@ import { readMatchingBinaryEntries, readMatchingTextEntries, replaceTextEntry, t
 import { decodeRoadCraftShopTexture, decodeRoadCraftTexture } from './shop-texture'
 import { CompiledPreviewStore } from './compiled-preview'
 import { arrayObjects } from './source-blocks'
+import { previewAssembly, previewMobility } from './preview-assembly'
 
 interface PackageBackupState {
   backupPath: string
@@ -382,15 +383,10 @@ export class RoadCraftService {
       if (!name) return
       const folder = item.archiveEntryName!.slice(0, item.archiveEntryName!.lastIndexOf('/') + 1)
       const wheels = await readMatchingTextEntries(item.sourcePath, entry => entry.startsWith(folder) && /\/auto_wheel_[^/]+\.cls$/i.test(entry))
-      const pool = this.findNestedRange(source, ['properties', 'prop_truck_rb', 'wheelPool'])
-      const aliases = new Map([...source.slice(pool.start, pool.end).matchAll(/([a-z0-9_]+)\s*=\s*\{\s*__value\s*=\s*"([a-z0-9_]+)"/gi)].map(match => [match[1], match[2]]))
-      const slots = arrayObjects(source, 'wheelSlotWithDescs').flatMap(slot => {
-        const frame = /geomName\s*=\s*"([^"]+)"/.exec(slot)?.[1], alias = /editableWheel\s*=\s*"([^"]+)"/.exec(slot)?.[1]
-        const definition = wheels.find(wheel => basename(wheel.entryName, '.cls') === aliases.get(alias ?? ''))
-        const model = definition && this.readStringValue(definition.content, ['properties', 'geom'], 'nameTpl')
-        return frame && model ? [{ frame, model, right: /isRightSided\s*=\s*True/i.test(slot) }] : []
-      })
-      return this.compiledPreviews().get(name, undefined, slots)
+      const assembly = previewAssembly(source, wheels)
+      const asset = await this.compiledPreviews().get(name, undefined, assembly.wheels, assembly.tracks)
+      const material = this.readStringValue(source, ['properties','prop_customization_materials'],'defaultMaterial')
+      return asset ? { ...asset, paintColor: await this.compiledPreviews().paintColor(material) } : undefined
     }
     const root = join(this.settings.installPath, 'root', 'mods_source')
     const source = await readFile(item.sourcePath, 'utf8')
@@ -847,6 +843,7 @@ export class RoadCraftService {
             : this.isDirectShopImage(stem, imagePath) ? 'shop' : 'related'
           : undefined,
         parameters,
+        mobility: previewMobility(archived.content),
         access: {
           control: metadata.aiOnly ? 'ai' : metadata.registered ? 'player' : 'unknown',
           variant: rusty ? 'rusty' : 'standard',

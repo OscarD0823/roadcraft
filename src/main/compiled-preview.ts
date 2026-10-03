@@ -10,12 +10,15 @@ import * as THREE from 'three'
 import { decodeBC1, decodeBC3, decodeBC5, decodeBC7, makePNG } from 'tex-decoder'
 import { readTplModel, decodeTplSurfaces } from './tpl-model'
 import { readMatchingTextEntries } from './zip-package'
+import { objectBody, arrayObjects } from './source-blocks'
+import { wrapTrackStrip, orientTrackStrip } from './track-geometry'
 import type { PreviewMaterial, VehiclePreviewAsset } from '../shared'
 
 interface Location { path: string; entry: string; metadata: Entry }
 interface Descriptor { width: number; height: number; format: number; mips: string[] }
 const compress = promisify(gzip), decompress = promisify(gunzip)
-export interface WheelSlot { frame: string; model: string; right: boolean; directory?: string; scale?: number }
+export interface WheelSlot { frame: string; model: string; right: boolean; directory?: string; scale?: number; radius?:number; visual?:boolean }
+export interface TrackLoop { model:string; rollers:WheelSlot[]; segmentLength:number; height:number; segmentBones:string[] }
 
 /** Own, bounded, read-only decoder. Geometry and PNGs are local caches only;
  * none of these game assets are included in the distributed application. */
@@ -23,6 +26,9 @@ export class CompiledPreviewStore {
   private models = new Map<string, Location>()
   private textures = new Map<string, Location>()
   private descriptors = new Map<string, Descriptor>()
+  private textureDefinitions = new Map<string,string>()
+  private definitionLocations = new Map<string,Location>()
+  private paintPresets: number[][] = []
   private prepared?: Promise<void>
   private previews = new Map<string, Promise<VehiclePreviewAsset | undefined>>()
   constructor(private readonly installPath: string, private readonly cacheRoot: string) {}
@@ -46,6 +52,14 @@ export class CompiledPreviewStore {
       const mips = [...resource.content.matchAll(/^-\s+([a-z0-9_-]+\.pct_mip)\s*$/gmi)].map(match => match[1].toLowerCase())
       if (width > 0 && height > 0 && width <= 32768 && height <= 32768 && mips.length) this.descriptors.set(basename(resource.entryName, '.pct.resource').toLowerCase(), { width, height, format, mips })
     }
+    const definitionsPath=join(root,'default_td.pak'), definitions=await openPromise(definitionsPath,{lazyEntries:true,strictFileNames:true,validateEntrySizes:true})
+    try {for await(const entry of definitions.eachEntry())if(/^td\/[^/]+\.td$/i.test(entry.fileName)&&entry.uncompressedSize<1024*1024)this.definitionLocations.set(basename(entry.fileName,'.td').toLowerCase(),{path:definitionsPath,entry:entry.fileName,metadata:entry})}
+    finally {if(definitions.isOpen)definitions.close()}
+    const [paintLibrary]=await readMatchingTextEntries(join(root,'default_other.pak'),n=>n.endsWith('/material_customization_presets_library.sso'))
+    this.paintPresets=paintLibrary ? arrayObjects(paintLibrary.content,'presets').map(raw=>{
+      const tint=objectBody(objectBody(raw,'preset'),'tint')
+      return ['r','g','b'].map(c=>Number(new RegExp(`\\b${c}\\s*=\\s*(\\d+)`).exec(tint)?.[1]??255))
+    }) : []
     await mkdir(this.cacheRoot, { recursive: true })
   }
   private async load(location?: Location) {
@@ -100,13 +114,23 @@ export class CompiledPreviewStore {
     await this.writeCache(target, Buffer.from(makePNG(rgba, width, height)))
     return pathToFileURL(target).href
   }
-  get(name: string, sourceDirectory?: string, wheels: WheelSlot[] = []) {
+  private async textureDefinition(name:string) {
+    const key=name.toLowerCase()
+    if(!this.textureDefinitions.has(key))this.textureDefinitions.set(key,(await this.load(this.definitionLocations.get(key)))?.toString('utf8')??'')
+    return this.textureDefinitions.get(key)!
+  }
+  async paintColor(material?:string) {
+    this.prepared ??= this.prepare(); await this.prepared
+    const index=/^customization_material_(\d+)$/.exec(material??'')?.[1]
+    return index ? this.paintPresets[Number(index)] : undefined
+  }
+  get(name: string, sourceDirectory?: string, wheels: WheelSlot[] = [], tracks:TrackLoop[] = []) {
     if (!/^[a-z0-9_-]{1,150}$/i.test(name)) return Promise.resolve(undefined)
-    const key = `${sourceDirectory ?? ''}:${name}:${JSON.stringify(wheels)}`
-    if (!this.previews.has(key)) this.previews.set(key, this.build(name, sourceDirectory, wheels).catch(error => { console.warn(`Modelo TPL ${name}:`, error instanceof Error ? error.message : error); return undefined }))
+    const key = `${sourceDirectory ?? ''}:${name}:${JSON.stringify(wheels)}:${JSON.stringify(tracks)}`
+    if (!this.previews.has(key)) this.previews.set(key, this.build(name, sourceDirectory, wheels, tracks).catch(error => { console.warn(`Modelo TPL ${name}:`, error instanceof Error ? error.message : error); return undefined }))
     return this.previews.get(key)!
   }
-  private async build(name: string, sourceDirectory?: string, wheels: WheelSlot[] = []): Promise<VehiclePreviewAsset | undefined> {
+  private async build(name: string, sourceDirectory?: string, wheels: WheelSlot[] = [], tracks:TrackLoop[] = []): Promise<VehiclePreviewAsset | undefined> {
     this.prepared ??= this.prepare()
     await this.prepared
     const tpl = sourceDirectory ? await this.loadSource(join(sourceDirectory, name + '.tpl')) : await this.load(this.models.get(name.toLowerCase() + '.tpl'))
@@ -126,9 +150,17 @@ export class CompiledPreviewStore {
       geometry.setIndex(surface.indices)
       if (surface.matrix) geometry.applyMatrix4(new THREE.Matrix4().fromArray(surface.matrix))
       const material = new THREE.MeshStandardMaterial({ color: 0xb4b7ab })
-      material.name = surface.material
-      materials[surface.material] = { ...(maps.get(surface.texture) ?? { type: 'original', transparent: false }),
+      // A wheel's generic "metal" material must not replace the body's texture.
+      const materialKey=name+'::'+surface.material
+      material.name = materialKey
+      materials[materialKey] = { ...(maps.get(surface.texture) ?? { type: 'original', transparent: false }),
         type: /decal/i.test(surface.name) ? 'decal' : /glass/i.test(surface.material) ? 'glass' : 'original', transparent: /glass/i.test(surface.material) }
+      const td=objectBody(objectBody(await this.textureDefinition(surface.texture),'materials'),String(metadata.splits.find(s=>s.material?.mayaMtl===surface.material)?.material?.shadingMtl_Mtl??'default'))
+      const tint=objectBody(td,'tintByMask'), customization=objectBody(td,'customization')
+      const color=(field:string)=>new RegExp(`\\b${field}\\s*=\\s*\\[([^\\]]*)\\]`).exec(tint)?.[1].match(/\d+/g)?.map(Number).slice(1,4)
+      const mask=/\btintMask\s*=\s*"([a-z0-9_-]+)"/i.exec(tint)?.[1]
+      Object.assign(materials[materialKey],{tint:color('albedo'),tintG:color('albedoG'),tintMask:mask?await this.texture(mask):undefined,
+        maskFromAlbedoAlpha:/maskFromAlbedoAlpha\s*=\s*true/i.test(tint),paintable:/tintBlendMode\s*=\s*"linear_blend"/i.test(objectBody(customization,'layer0'))})
       const mesh = new THREE.Mesh(geometry, material); mesh.name = surface.name; model.add(mesh)
     }
     const wheelVersions: string[] = []
@@ -144,13 +176,38 @@ export class CompiledPreviewStore {
       if (slot.scale && slot.scale > 0 && slot.scale <= 10) wheel.scale.multiplyScalar(slot.scale)
       const group = new THREE.Group(); group.name = 'preview_wheel_' + slot.frame
       new THREE.Matrix4().fromArray(frame.bindTransform).decompose(group.position, group.quaternion, group.scale)
-      if (!slot.right) { wheel.rotateY(Math.PI); group.userData.rollSign = -1 }
-      group.userData.drivenWheel = true; group.add(wheel); model.add(group)
+      if (!slot.right) wheel.rotateY(Math.PI)
+      group.userData.drivenWheel = true; group.userData.radius=slot.radius; group.add(wheel); model.add(group)
       Object.assign(materials, asset.materials)
     }
+    for(const [i,track] of tracks.entries()) {
+      const asset=await this.get(track.model)
+      if(!asset)continue
+      wheelVersions.push(asset.modelUrl)
+      const encoded=await readFile(new URL(asset.modelUrl)),json=asset.modelEncoding==='gzip-json'?await decompress(encoded):encoded
+      const strip=new THREE.ObjectLoader().parse(JSON.parse(json.toString('utf8')))
+      const guides=track.rollers.flatMap(slot=>{
+        const node=metadata.nodes.find(n=>n.name.toLowerCase()===slot.frame.toLowerCase()),p=node?.bindTransform?.slice(12,15),radius=slot.radius??slot.scale??0
+        return p&&radius>0?[{x:p[0],y:p[1],z:p[2],radius}]:[]
+      })
+      const trackMetadata=readTplModel((await this.load(this.models.get(track.model.toLowerCase()+'.tpl')))!)
+      const boneCount=track.segmentBones.length
+      if(guides.length<2 || !boneCount)continue
+      const segmentTransforms=track.segmentBones.map(name=>trackMetadata.nodes.find(n=>n.name===name)?.bindTransform).filter((m):m is number[]=>!!m)
+      strip.traverse(object=>{
+        if(!(object instanceof THREE.Mesh))return
+        const section=orientTrackStrip(object.geometry,segmentTransforms)
+        const mesh=new THREE.Mesh(wrapTrackStrip(section,guides,track.segmentLength*boneCount,track.height),object.material);section.dispose()
+        mesh.name='preview_track_'+i;mesh.userData.track=true;model.add(mesh)
+      })
+      Object.assign(materials,asset.materials)
+    }
     const size = new THREE.Box3().setFromObject(model).getSize(new THREE.Vector3())
-    if (!size.toArray().every(value => value > .1 && value < 150)) throw new Error('TPL dimensions outside preview limits')
-    const target = join(this.cacheRoot, createHash('sha1').update(tpl).update(data).update(JSON.stringify(wheels)).update(JSON.stringify(wheelVersions)).update('geometry-v5').digest('hex') + '.json.gz')
+    const dimensions=size.toArray()
+    // Track strips are deliberately almost flat before they wrap around rollers.
+    const trackSection=/(?:_track|_chain)$/.test(name)
+    if (!dimensions.every(value => Number.isFinite(value) && value > (trackSection ? .00001 : .1) && value < 150) || dimensions.filter(value=>value>.1).length < (trackSection ? 2 : 3)) throw new Error('TPL dimensions outside preview limits')
+    const target = join(this.cacheRoot, createHash('sha1').update(tpl).update(data).update(JSON.stringify(wheels)).update(JSON.stringify(tracks)).update(JSON.stringify(wheelVersions)).update('geometry-v9').digest('hex') + '.json.gz')
     if (!existsSync(target)) await this.writeCache(target, await compress(JSON.stringify(model.toJSON())))
     model.traverse(object => { if (object instanceof THREE.Mesh) { object.geometry.dispose(); (object.material as THREE.Material).dispose() } })
     return { format: 'tpl', modelEncoding: 'gzip-json', modelUrl: pathToFileURL(target).href, modelImportScale: 1, wheelImportScale: 1, wheelScale: 1, textures: {}, materials }

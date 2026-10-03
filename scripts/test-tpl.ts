@@ -3,7 +3,7 @@ import { existsSync } from 'node:fs'
 import { readFile, readdir, mkdir, writeFile } from 'node:fs/promises'
 import { join, basename } from 'node:path'
 import * as THREE from 'three'
-import { TplReader, readTplModel, decodeTplSurfaces } from '../src/main/tpl-model'
+import { TplReader, readTplModel, decodeTplSurfaces, type TplModel } from '../src/main/tpl-model'
 import { arrayObjects } from '../src/main/source-blocks'
 import { readMatchingBinaryEntries, readMatchingTextEntries } from '../src/main/zip-package'
 
@@ -12,6 +12,15 @@ assert.throws(() => readTplModel(Buffer.alloc(2)), /truncated/)
 assert.throws(() => new TplReader(Buffer.alloc(8)).take(9), /truncated/)
 assert.throws(() => new TplReader(Buffer.alloc(8)).value(21), /nesting/)
 assert.deepEqual(arrayObjects('wheelSlots = [{ geomName = "a}b" }, { id = 2 }]', 'wheelSlots'), ['{ geomName = "a}b" }', '{ id = 2 }'])
+const rigidData=Buffer.alloc(42)
+rigidData.writeInt16LE(32767,8);rigidData.writeInt16LE(32767,20)
+rigidData.writeUInt16LE(1,38);rigidData.writeUInt16LE(2,40)
+const bits=(...ids:number[])=>Array.from({length:72},(_,i)=>ids.includes(i))
+const rigid:TplModel={nodes:[{id:0,name:'bone',parent:-1,bindTransform:new THREE.Matrix4().makeTranslation(0,4,0).elements},{id:1,name:'surface',parent:-1,bindTransform:new THREE.Matrix4().elements}],streams:[{bits:bits(0,1,3,45),stride:8,length:24,offset:0},{bits:bits(9),stride:4,length:12,offset:24},{bits:bits(),stride:6,length:6,offset:36}],meshes:[{bits:bits(9),streams:[{id:0,offset:0},{id:1,offset:0},{id:2,offset:0}]}],splits:[{node:1,skin:-1,mesh:0,vertexOffset:0,vertexCount:3,faceOffset:0,faceCount:1}]}
+const placed=decodeTplSurfaces(rigid,rigidData)[0]
+assert.deepEqual(placed.positions,[0,4,0,1,4,0,0,4,1],'Rigid bone stream was not positioned')
+assert.equal(placed.matrix,undefined,'Rigid transform would be applied twice')
+assert.throws(()=>decodeTplSurfaces(rigid,rigidData.subarray(0,24)),/range|truncated/)
 
 async function main() {
   const game = process.env.ROADCRAFT_GAME_PATH ?? 'E:/SteamLibrary/steamapps/common/RoadCraft'
@@ -53,6 +62,7 @@ async function main() {
     const root = join(game, 'root/mods_source/models/mods', name + '.tpl.asset/tpl')
     const surfaces = decodeTplSurfaces(readTplModel(await readFile(join(root, name + '.tpl'))), await readFile(join(root, name + '.tpl_data')))
     assert(surfaces.length > 10, 'Official source preview regression')
+    assert(surfaces.every(s=>!/^_load_(volume|border)/.test(s.name)),'Hidden cargo geometry rendered')
   }
 }
 void main().catch(error => { console.error(error); process.exitCode = 1 })

@@ -21,6 +21,7 @@ export class DrivingStage {
   readonly wheels = new THREE.Group()
   terrain: Terrain = 'auto'
   moving = !matchMedia('(prefers-reduced-motion: reduce)').matches
+  canTravel = true
   private readonly observer: ResizeObserver
   private readonly landscape = new THREE.Group()
   private readonly groundMaterial = new THREE.MeshStandardMaterial({ roughness: .96 })
@@ -36,10 +37,12 @@ export class DrivingStage {
   private readonly scenery: Array<{ object: THREE.Object3D; sphere: THREE.Sphere }> = []
   private readonly environment: THREE.WebGLRenderTarget
   private readonly vehicleBounds = new THREE.Box3()
-  private driven: Array<{ object: THREE.Object3D; rotation: THREE.Quaternion }> = []
+  private driven: Array<{ object: THREE.Object3D; rotation: THREE.Quaternion; axis:THREE.Vector3; radius:number }> = []
   setDrivenParts(parts: THREE.Object3D[], radius = .6) {
     this.radius = Math.max(.15, radius)
-    this.driven = parts.map(object => ({ object, rotation: object.quaternion.clone() }))
+    this.driven = parts.map(object => ({ object, rotation: object.quaternion.clone(),
+      axis: new THREE.Vector3(1,0,0).applyQuaternion(object.getWorldQuaternion(new THREE.Quaternion()).invert()),
+      radius:Math.max(.05,Number(object.userData.radius)||this.radius) }))
   }
 
   constructor(private readonly host: HTMLElement, private readonly roadcraft = false) {
@@ -72,9 +75,9 @@ export class DrivingStage {
     ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; this.scene.add(ground, this.landscape, this.roadMarks)
     // Fixed seed keeps screenshots and transitions reproducible.
     for (let i = 0; i < 48; i++) {
-      const x = i * 1.713 % 80 - 40, side = i % 2 ? -1 : 1, z = side * (6 + i * 2.13 % 16)
+      const z = i * 1.713 % 80 - 40, side = i % 2 ? -1 : 1, x = side * (6 + i * 2.13 % 16)
       const rock = new THREE.Mesh(new THREE.IcosahedronGeometry(.15 + i * .17 % .5, 0), new THREE.MeshStandardMaterial({ color: 0x787a71, roughness: 1 }))
-      rock.position.set(x, .14, z * .75); rock.rotation.set(i, i * .3, i * .7); rock.castShadow = true; this.landscape.add(rock)
+      rock.position.set(x * .75, .14, z); rock.rotation.set(i, i * .3, i * .7); rock.castShadow = true; this.landscape.add(rock)
       const tree = new THREE.Group()
       const trunk = new THREE.Mesh(new THREE.CylinderGeometry(.08, .14, 2.4, 5), new THREE.MeshStandardMaterial({ color: 0x685c4e }))
       trunk.position.y = 1.2; tree.add(trunk)
@@ -83,7 +86,8 @@ export class DrivingStage {
       tree.position.set(x + 2, 0, z); tree.scale.setScalar(.65 + i * .11 % .7); this.landscape.add(tree)
       if (i < 20) {
         const track = new THREE.Mesh(new THREE.BoxGeometry(.85, .014, .06), new THREE.MeshStandardMaterial({ color: 0xa89a7d, roughness: 1 }))
-        track.position.set(i * 3 - 30, .008, i % 2 ? -1 : 1); this.roadMarks.add(track)
+        track.rotation.y = Math.PI/2
+        track.position.set(i % 2 ? -1 : 1, .008, i * 3 - 30); this.roadMarks.add(track)
       }
     }
     for (let i = 0; i < 12; i++) {
@@ -106,6 +110,9 @@ export class DrivingStage {
   }
   setBody(model: THREE.Object3D) {
     this.body.clear(); this.body.add(model)
+    // Fog must not erase the ground under a crane's distant, stationary base.
+    this.groundMaterial.fog = this.canTravel
+    this.groundMaterial.needsUpdate = true
     this.body.position.y = 0
     const box = visibleVehicleBounds(this.body)
     this.body.position.y = -box.min.y + .03
@@ -143,7 +150,7 @@ export class DrivingStage {
     this.frame = requestAnimationFrame(this.animate)
     const dt = Math.min((now - this.last) / 1000, .05); this.last = now
     if (document.hidden || !this.inView) return
-    if (this.moving) this.time += dt
+    if (this.moving && this.canTravel) this.time += dt
     const sequence: Array<keyof typeof palettes> = this.roadcraft ? ['construction', 'asphalt', 'mud', 'forest', 'rock'] : ['forest', 'mud', 'rock', 'snow']
     const index = Math.floor(this.time / 24) % sequence.length
     const transition = Math.min((this.time % 24) / 5, 1)
@@ -154,11 +161,11 @@ export class DrivingStage {
     this.groundMaterial.color.set(prior[1]).lerp(new THREE.Color(current[1]), transition)
     this.foliage.color.set(prior[2]).lerp(new THREE.Color(current[2]), transition)
     const move = this.time * 2.5
-    this.landscape.position.x = -(move % 16)
-    this.roadMarks.position.x = -(move % 3)
-    this.vehicle.position.y = this.moving ? .02 * Math.sin(this.time * 5) : 0
-    this.vehicle.rotation.z = this.moving ? .004 * Math.sin(this.time * 3) : 0
-    for (const part of this.driven) part.object.quaternion.copy(part.rotation).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -move / this.radius * Number(part.object.userData.rollSign ?? 1)))
+    this.landscape.position.z = -(move % 16)
+    this.roadMarks.position.z = -(move % 3)
+    this.vehicle.position.y = this.moving && this.canTravel ? .02 * Math.sin(this.time * 5) : 0
+    this.vehicle.rotation.z = this.moving && this.canTravel ? .004 * Math.sin(this.time * 3) : 0
+    for (const part of this.driven) part.object.quaternion.copy(part.rotation).multiply(new THREE.Quaternion().setFromAxisAngle(part.axis,move / part.radius))
     this.controls.update()
     if (this.body.children.length) {
       this.scene.updateMatrixWorld(true)
@@ -168,6 +175,8 @@ export class DrivingStage {
     this.renderer.render(this.scene, this.camera)
     this.host.dataset.terrain = this.terrain === 'auto' ? sequence[index] : this.terrain
     this.host.dataset.frame = String(Math.floor(this.time * 10))
+    this.host.dataset.travelAxis='z';this.host.dataset.travel=String(this.canTravel)
+    this.host.dataset.groundMotion=JSON.stringify(this.landscape.position.toArray())
   }
   dispose() {
     this.disposed = true; cancelAnimationFrame(this.frame)

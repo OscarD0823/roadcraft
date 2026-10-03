@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import * as THREE from 'three'
 import { FBXLoader } from 'three/addons/loaders/FBXLoader.js'
-import { fbxMetersScale, exteriorMesh, mountSourceWheel, configureRoadShading } from '../src/renderer/source-model'
+import { fbxMetersScale, exteriorMesh, mountSourceWheel, configureRoadShading, configureRoadPaint } from '../src/renderer/source-model'
 import { visibleVehicleBounds, fitVehicleCamera, sceneryOccludesVehicle, vehicleScreenRegion } from '../src/renderer/vehicle-framing'
 
 const manager = new THREE.LoadingManager()
@@ -43,12 +43,18 @@ for(const aspect of [.4,.65,1,1.8,3]) {
 }
 assert.equal(exteriorMesh('body_geom'),true);assert.equal(exteriorMesh('body_lod2'),false)
 assert.equal(exteriorMesh('hp_cab_interior'),false);assert.equal(exteriorMesh('BoneBodyRear_cdt'),false)
+assert.equal(exteriorMesh('_load_volume'),false);assert.equal(exteriorMesh('_load_border_front'),false)
 const material = new THREE.MeshStandardMaterial(), map = new THREE.Texture()
 configureRoadShading(material,map)
 const shader = {fragmentShader:THREE.ShaderLib.standard.fragmentShader}
 material.onBeforeCompile(shader as never,{} as THREE.WebGLRenderer)
 assert.ok(shader.fragmentShader.includes('texelMetalness.r') && shader.fragmentShader.includes('vAoMapUv ).b'))
 assert.ok(!shader.fragmentShader.includes('#include <metalnessmap_fragment>') && !shader.fragmentShader.includes('#include <aomap_fragment>'), 'GPU shader channel remapping not expanded')
+configureRoadPaint(material,{mask:map,tint:[15,47,90],tintG:[59,65,73]})
+const paintShader={fragmentShader:THREE.ShaderLib.standard.fragmentShader,uniforms:{}}
+material.onBeforeCompile(paintShader as never,{} as THREE.WebGLRenderer)
+assert.ok(paintShader.fragmentShader.includes('roadPaintWeights.r')&&paintShader.fragmentShader.includes('texelMetalness.r'),'Paint must preserve the original PBR shader')
+assert.ok((paintShader.uniforms as Record<string,unknown>).roadPaintMask)
 const camera = new THREE.PerspectiveCamera(36,1,.05,250);camera.position.set(0,2,20);camera.lookAt(0,2,0);camera.updateMatrixWorld()
 const region = vehicleScreenRegion(camera,new THREE.Box3(new THREE.Vector3(-8,0,-2),new THREE.Vector3(8,4,2)))
 assert.ok(sceneryOccludesVehicle(camera,region,new THREE.Sphere(new THREE.Vector3(0,2,8),3)))

@@ -8,7 +8,7 @@ export function fbxMetersScale(model: THREE.Object3D) {
 }
 
 export function exteriorMesh(name: string) {
-  return !/(?:^|_)cdt(?:$|_)|collision|_lod[1-9]|(?:^|_)hp_|cutoff|physical/i.test(name)
+  return !/(?:^|_)cdt(?:$|_)|collision|_lod[1-9]|(?:^|_)hp_|cutoff|physical|^_load_(?:volume|border)|^_sfx_/i.test(name)
 }
 
 /** Cancel the loader's root-axis conversion when nesting a wheel in a source bone. */
@@ -33,4 +33,20 @@ export function configureRoadShading(material: THREE.MeshStandardMaterial, textu
       .replace('#include <aomap_fragment>', THREE.ShaderChunk.aomap_fragment.replace('texture2D( aoMap, vAoMapUv ).r', 'texture2D( aoMap, vAoMapUv ).b'))
   }
   material.customProgramCacheKey = () => 'roadcraft-r-g-b-pbr-v1'
+}
+
+/** Preserve unpainted areas; native material tinting uses a mask, not an overall color wash. */
+export function configureRoadPaint(material: THREE.MeshStandardMaterial, options: {mask?:THREE.Texture; tint:number[]; tintG?:number[]; albedoAlpha?:boolean}) {
+  const prior = material.onBeforeCompile.bind(material), priorKey = material.customProgramCacheKey()
+  const color=(rgb:number[])=>new THREE.Color().setRGB(rgb[0]/255,rgb[1]/255,rgb[2]/255,THREE.SRGBColorSpace)
+  material.onBeforeCompile=(shader,renderer)=>{
+    prior(shader,renderer)
+    shader.uniforms.roadPaintTint={value:color(options.tint)}
+    shader.uniforms.roadPaintTintG={value:color(options.tintG??[255,255,255])}
+    if(options.mask)shader.uniforms.roadPaintMask={value:options.mask}
+    shader.fragmentShader='uniform vec3 roadPaintTint;\nuniform vec3 roadPaintTintG;\n'+(options.mask?'uniform sampler2D roadPaintMask;\n':'')+shader.fragmentShader
+    const weight=options.mask?'texture2D(roadPaintMask,vMapUv).rgb':'vec3('+ (options.albedoAlpha?'sampledDiffuseColor.a':'0.0') +',0.0,0.0)'
+    shader.fragmentShader=shader.fragmentShader.replace('#include <map_fragment>', THREE.ShaderChunk.map_fragment+`\n#ifdef USE_MAP\nvec3 roadPaintWeights=${weight};\ndiffuseColor.rgb=mix(diffuseColor.rgb,roadPaintTint,roadPaintWeights.r);\ndiffuseColor.rgb=mix(diffuseColor.rgb,roadPaintTintG,roadPaintWeights.g);\n#endif\n`)
+  }
+  material.customProgramCacheKey=()=>priorKey+':road-paint-v1:'+!!options.mask+':'+!!options.albedoAlpha
 }
