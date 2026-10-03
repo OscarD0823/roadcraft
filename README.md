@@ -1,6 +1,8 @@
 # RoadCraft Studio
 
-## Versión 0.7.0
+## Versión 0.7.1
+
+- Corrige una condición de carrera al abrir el programa: la ventana se muestra tras el primer dibujo, sin perder el evento durante la carga.
 
 - Visor permanente en el lateral izquierdo y ajustes con desplazamiento independiente a la derecha, como en SnowRunner Studio.
 - Botones de guardar/restaurar siempre accesibles y distribución adaptada a ventanas de 600, 960 y 1366 píxeles.

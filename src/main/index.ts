@@ -90,6 +90,8 @@ async function createWindow() {
   })
 
   window.setMenuBarVisibility(false)
+  // Register before loading: the first paint can precede loadFile resolving.
+  window.once('ready-to-show', () => window.show())
 
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
     await window.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL)
@@ -97,7 +99,6 @@ async function createWindow() {
     await window.loadFile(join(currentDir, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`))
   }
 
-  window.once('ready-to-show', () => window.show())
   return window
 }
 

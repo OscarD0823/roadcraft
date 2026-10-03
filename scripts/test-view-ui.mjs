@@ -1,11 +1,22 @@
-import { spawn } from 'node:child_process'
-import { mkdir, writeFile } from 'node:fs/promises'
+import { spawn, execFile } from 'node:child_process'
+import { mkdir, writeFile, cp, readFile } from 'node:fs/promises'
+import { promisify } from 'node:util'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import assert from 'node:assert/strict'
-const root = dirname(dirname(fileURLToPath(import.meta.url))), output = join(root, '.vite', 'view-ui'), port = 9335
+const root = dirname(dirname(fileURLToPath(import.meta.url))), output = join(root, 'out', 'qa-ui'), port = 9335
 await mkdir(output, { recursive: true })
-const child = spawn(process.env.ROADCRAFT_APP_EXE ?? join(root, 'out', 'RoadCraft Studio-win32-x64', 'RoadCraft Studio.exe'), [`--remote-debugging-port=${port}`, `--user-data-dir=${join(output, 'data')}`], { stdio:'ignore', windowsHide:true, env: { ...process.env, ROADCRAFT_DATA_ROOT: join(output, 'data') } })
+// Preserve this isolated cache across Vite builds; never use the user's settings.
+const previous = join(root,'.vite','view-ui','data'), dataRoot=join(output,'data')
+try {await readFile(join(dataRoot,'settings.json'))}catch{
+  try{
+    await cp(previous,dataRoot,{recursive:true})
+    const settings=JSON.parse(await readFile(join(dataRoot,'settings.json'),'utf8'))
+    for(const [key,path] of Object.entries(settings.automaticImages??{})) if(path.startsWith(previous)) settings.automaticImages[key]=dataRoot+path.slice(previous.length)
+    await writeFile(join(dataRoot,'settings.json'),JSON.stringify(settings,null,2))
+  }catch{}
+}
+const child = spawn(process.env.ROADCRAFT_APP_EXE ?? join(root, 'out', 'RoadCraft Studio-win32-x64', 'RoadCraft Studio.exe'), [`--remote-debugging-port=${port}`, `--user-data-dir=${join(output, 'data')}`], { stdio:'ignore', windowsHide:false, env: { ...process.env, ROADCRAFT_DATA_ROOT: join(output, 'data') } })
 let socket
 try {
   let target
@@ -33,6 +44,10 @@ try {
   const wait = async expression=>{for(let i=0;i<1200;i++){if(await evaluate(expression))return;await new Promise(r=>setTimeout(r,200))}throw new Error('UI wait timed out: '+expression+' '+warnings.join('; '))}
   await call('Runtime.enable'); await call('Page.enable')
   await wait('document.querySelectorAll(".content-card").length > 80')
+  const {stdout}=await promisify(execFile)('powershell.exe',['-NoProfile','-NonInteractive','-Command',`Get-Process -Id ${child.pid} | ForEach-Object { [pscustomobject]@{Visible=($_.MainWindowHandle -ne 0);Title=$_.MainWindowTitle} } | ConvertTo-Json -Compress`],{windowsHide:true})
+  const nativeWindow=JSON.parse(stdout.trim())
+  assert.equal(nativeWindow.Visible,true,'Application loaded but its Windows window stayed hidden')
+  assert.equal(nativeWindow.Title,'RoadCraft Studio')
   const counts=await evaluate('({cards:document.querySelectorAll(".content-card").length,animation:!!document.querySelector(".workspace-journey .journey-convoy")})')
   assert.ok(counts.animation)
   const scan=await evaluate('window.roadcraft.scan()')
@@ -110,5 +125,5 @@ try {
   }
   await evaluate(`(()=>{const select=document.querySelector('.language-select select');select.value='es';select.dispatchEvent(new Event('change',{bubbles:true}))})()`)
   if(errors.length)throw new Error(errors.join('\n'))
-  const result={counts,base,source,layout,classification,images,previews,languages,errors,warnings};await writeFile(join(output,'results.json'),JSON.stringify(result,null,2));console.log(JSON.stringify({counts,base,source,layout,classification,images:images.length,missingImages:images.filter(i=>!i.image).map(i=>i.name),previews:previews.length,languages,errors,warnings},null,2))
+  const result={nativeWindow,counts,base,source,layout,classification,images,previews,languages,errors,warnings};await writeFile(join(output,'results.json'),JSON.stringify(result,null,2));console.log(JSON.stringify({nativeWindow,counts,base,source,layout,classification,images:images.length,missingImages:images.filter(i=>!i.image).map(i=>i.name),previews:previews.length,languages,errors,warnings},null,2))
 } finally {socket?.close();child.kill()}
