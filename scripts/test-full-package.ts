@@ -34,20 +34,22 @@ async function main() {
     await copyFile(source, copy)
     const vehicles = await readMatchingTextEntries(
       copy,
-      name => /^ssl\/autogen_designer_wizard\/trucks\/([^/]+)\/\1\.cls$/i.test(name)
+      name => /^ssl\/autogen_designer_wizard\/trucks\/(?:base\/)?([^/]+)\/\1\.cls$/i.test(name)
     )
-    const target = vehicles.find(entry => entry.content.includes('torque'))
+    const target = vehicles.find(entry => entry.entryName.includes('/trucks/base/') && entry.content.includes('torque'))
     if (!target) throw new Error('No se encontró un vehículo válido para la prueba.')
+    const changed = target.content.replace(/(\btorque\s*=\s*)([-+]?\d*\.?\d+)/, (_match, prefix, value) => prefix + Number(value) * 1.01)
+    if (changed === target.content) throw new Error('No se pudo preparar la modificación de la copia temporal.')
 
     const beforeCount = await countEntries(copy)
     console.log(`Reconstruyendo una copia con ${beforeCount} entradas...`)
-    await replaceTextEntry(copy, target.entryName, target.content)
+    await replaceTextEntry(copy, target.entryName, changed)
     const afterCount = await countEntries(copy)
     const verification = await readMatchingTextEntries(copy, name => name === target.entryName)
 
     if (beforeCount !== afterCount) throw new Error(`El paquete cambió de ${beforeCount} a ${afterCount} entradas.`)
-    if (verification[0]?.content !== target.content) throw new Error('La configuración del vehículo cambió durante la prueba.')
-    console.log(`Prueba completa correcta: ${vehicles.length} vehículos y ${afterCount} entradas conservadas.`)
+    if (verification[0]?.content !== changed) throw new Error('La modificación de IA no se conservó en la copia temporal.')
+    console.log(`Prueba completa correcta: modificación IA verificada; ${vehicles.length} clases y ${afterCount} entradas conservadas.`)
   } finally {
     await rm(temporaryRoot, { recursive: true, force: true })
   }

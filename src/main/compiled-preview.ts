@@ -1,4 +1,4 @@
-import { openPromise } from 'yauzl'
+import { openPromise, type Entry } from 'yauzl'
 import { mkdir, readFile, readdir, stat, writeFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import { basename, join } from 'node:path'
@@ -9,10 +9,10 @@ import { promisify } from 'node:util'
 import * as THREE from 'three'
 import { decodeBC1, decodeBC3, decodeBC5, decodeBC7, makePNG } from 'tex-decoder'
 import { readTplModel, decodeTplSurfaces } from './tpl-model'
-import { readMatchingBinaryEntries, readMatchingTextEntries } from './zip-package'
+import { readMatchingTextEntries } from './zip-package'
 import type { PreviewMaterial, VehiclePreviewAsset } from '../shared'
 
-interface Location { path: string; entry: string }
+interface Location { path: string; entry: string; metadata: Entry }
 interface Descriptor { width: number; height: number; format: number; mips: string[] }
 const compress = promisify(gzip), decompress = promisify(gunzip)
 export interface WheelSlot { frame: string; model: string; right: boolean; directory?: string; scale?: number }
@@ -35,8 +35,8 @@ export class CompiledPreviewStore {
         for await (const entry of archive.eachEntry()) {
           if (entry.uncompressedSize > 64 * 1024 * 1024) continue
           const name = basename(entry.fileName).toLowerCase()
-          if (/\.tpl(?:_data)?$/.test(name)) this.models.set(name, { path, entry: entry.fileName })
-          if (/_\d+\.pct_mip$/.test(name)) this.textures.set(name, { path, entry: entry.fileName })
+          if (/\.tpl(?:_data)?$/.test(name)) this.models.set(name, { path, entry: entry.fileName, metadata: entry })
+          if (/_\d+\.pct_mip$/.test(name)) this.textures.set(name, { path, entry: entry.fileName, metadata: entry })
         }
       } finally { if (archive.isOpen) archive.close() }
     }
@@ -50,7 +50,19 @@ export class CompiledPreviewStore {
   }
   private async load(location?: Location) {
     if (!location) return
-    return (await readMatchingBinaryEntries(location.path, name => name === location.entry, 64 * 1024 * 1024))[0]?.content
+    // The index already contains the local-header offset. Do not enumerate a
+    // multi-gigabyte package again for every material mip or model component.
+    const archive = await openPromise(location.path, { lazyEntries: true, validateEntrySizes: true, strictFileNames: true })
+    try {
+      const chunks: Buffer[] = []
+      let length = 0
+      for await (const chunk of await archive.openReadStreamPromise(location.metadata)) {
+        length += chunk.length
+        if (length > 64 * 1024 * 1024) throw new Error('Preview resource exceeds size limit')
+        chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk))
+      }
+      return Buffer.concat(chunks)
+    } finally { if (archive.isOpen) archive.close() }
   }
   private async loadSource(path: string) {
     if ((await stat(path)).size > 64 * 1024 * 1024) throw new Error('Source model exceeds preview limit')
