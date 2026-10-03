@@ -2,72 +2,51 @@
   <div class="startup-journey" :class="{ 'startup-journey--loop': loop }" aria-hidden="true">
     <svg viewBox="0 0 900 240" xmlns="http://www.w3.org/2000/svg">
       <defs>
-        <linearGradient :id="`${id}-sky`" x2="0" y2="1">
-          <stop stop-color="#101f2d" /><stop offset=".7" stop-color="#33525e" /><stop offset="1" stop-color="#d29b68" />
-        </linearGradient>
-        <linearGradient :id="`${id}-paint`" x2="0" y2="1">
-          <stop stop-color="#ffc778" /><stop offset=".5" stop-color="#d56b29" /><stop offset="1" stop-color="#86452b" />
-        </linearGradient>
-        <linearGradient :id="`${id}-beam`"><stop stop-color="#fff3cd" stop-opacity=".4" /><stop offset="1" stop-color="#fff3cd" stop-opacity="0" /></linearGradient>
+        <linearGradient :id="`${id}-sky`" x2="0" y2="1"><stop stop-color="#112739" /><stop offset="1" stop-color="#708781" /></linearGradient>
+        <linearGradient :id="`${id}-steel`" x2="0" y2="1"><stop stop-color="#ffc477" /><stop offset="1" stop-color="#b55a29" /></linearGradient>
+        <linearGradient :id="`${id}-road`" x2="0" y2="1"><stop stop-color="#485561" /><stop offset="1" stop-color="#25343f" /></linearGradient>
+        <clipPath v-for="phase in ['sand', 'graded', 'paved', 'rolled']" :id="`${id}-${phase}`" :key="phase"><rect class="road-progress" :class="`road-progress--${phase}`" y="177" width="900" height="63" /></clipPath>
+        <g :id="`${id}-wheel`"><circle r="15" fill="#17232b" stroke="#68716b" stroke-width="3" /><circle r="7" fill="#d6b683" /><path d="M-11 0h22M0-11v22" stroke="#8d9389" stroke-width="2" /><circle r="3" fill="#3f4e52" /></g>
+        <g :id="`${id}-track`"><rect width="100" height="28" rx="14" fill="#202e34" stroke="#7e8c80" stroke-width="3" stroke-dasharray="5 3" /><circle v-for="x in [15, 38, 62, 85]" :key="x" :cx="x" cy="14" r="8" fill="#687b73" stroke="#c4b291" stroke-width="2" /></g>
+        <g :id="`${id}-cab`"><path d="M0 0h35l16 20v29H0Z" :fill="`url(#${id}-steel)`" /><path d="M6 5h25l10 14H6Z" fill="#b9d1ce" /><path d="M4 27h30M3 33h30" stroke="#754b34" stroke-width="2" /><rect x="42" y="26" width="7" height="5" rx="1" fill="#ffe8b0" /></g>
       </defs>
       <rect width="900" height="240" rx="18" :fill="`url(#${id}-sky)`" />
-      <circle class="journey-sun" cx="696" cy="85" r="34" fill="#f2bc80" opacity=".32" />
-      <g class="journey-mountains">
-        <path d="M0 131 94 46 148 92 245 14 359 107 433 53 573 136 687 37 784 109 854 60 900 109V220H0Z" fill="#73929b" opacity=".4" />
-        <path d="m198 62 47-48 48 50-31-9-17 11-13-16zM649 74l38-37 38 36-26-6-12 11-10-16zM65 73l29-27 31 30-21-6-10 9-9-13z" fill="#9ca8a4" opacity=".74" />
-        <path d="M0 151 92 119 192 143 296 96 427 151 543 104 659 146 788 105 900 143V230H0Z" fill="#253f48" />
+      <circle cx="716" cy="54" r="30" fill="#f3c890" opacity=".4" />
+      <path d="M0 135 95 61 156 92 248 21 355 110 431 70 579 135 692 47 795 106 855 73 900 109V200H0Z" fill="#96aaaa" opacity=".35" />
+      <path d="m211 51 37-30 38 32-25-7-13 9-13-12zM659 77l33-30 31 30-21-5-10 8-12-12z" fill="#d2d1b4" opacity=".45" />
+      <path d="M0 151 104 118 194 144 295 106 427 150 546 114 661 144 790 117 900 146V215H0Z" fill="#29494e" />
+      <g fill="#183a3b"><path v-for="(x, i) in [12, 35, 151, 174, 291, 315, 532, 554, 789, 818, 865, 890]" :key="x" :transform="`translate(${x},${115 + i % 3 * 7})`" d="M0 57h7V35h14L4-4-13 35H0Z" /></g>
+      <path d="M0 188q57-19 117 0t110-3 120 2 90-1 118 0 125-3 220 5V240H0Z" fill="#5a6255" />
+      <path d="M0 210q62-12 124 0t124-2 133 3 142-1 135 2 242-2V240H0Z" fill="#6f6252" />
+      <g :clip-path="`url(#${id}-sand)`"><path d="M0 203q30-14 61 0t61 0 61 0 61 0 61 0 61 0 61 0 61 0 61 0 61 0 61 0 61 0 61 0 107 0V232H0Z" fill="#d1a56b" /><path d="M0 216H900" stroke="#ac794c" stroke-width="3" stroke-dasharray="2 9" /></g>
+      <g :clip-path="`url(#${id}-graded)`"><path d="M0 205H900V233H0Z" fill="#c8a875" /><path d="M0 213H900M0 226H900" stroke="#91744f" stroke-width="2" opacity=".4" /></g>
+      <g :clip-path="`url(#${id}-paved)`"><path d="M0 205H900V235H0Z" fill="#59615d" /><path d="M0 218H900" stroke="#85877a" stroke-width="18" stroke-dasharray="2 6" opacity=".18" /></g>
+      <g :clip-path="`url(#${id}-rolled)`"><path d="M0 205H900V235H0Z" :fill="`url(#${id}-road)`" /><path d="M0 220H900" stroke="#e5cba3" stroke-width="2" stroke-dasharray="23 18" /><path d="M0 207H900M0 233H900" stroke="#9eaa9f" stroke-width="1" opacity=".5" /></g>
+      <g class="journey-portal"><circle cx="58" cy="137" r="39" fill="#112c37" stroke="#d79951" opacity=".85" /><circle class="logo-ring" cx="58" cy="137" r="35" fill="none" stroke="#ffc176" stroke-dasharray="24 16" /><image :href="appIcon" x="33" y="112" width="50" height="50" /></g>
+      <!-- Survey, sand, grade, pave, compact, delivery, then the scout departs. -->
+      <g class="machine machine--scout" data-machine="scout">
+        <ellipse cx="48" cy="51" rx="51" ry="5" fill="#10272e" opacity=".35" />
+        <g class="machine-body"><path d="M2 20h21L36 0h34l16 20h14v22H2Z" fill="#d39a57" /><path d="M38 5h29l10 14H30Z" fill="#bfd5d0" /><path d="M52 5v15M10 27h77" stroke="#7d5e3e" stroke-width="2" /><rect x="86" y="24" width="12" height="6" rx="2" fill="#ffe9b7" /><path d="M5 3h20M38-3h32" stroke="#283d43" stroke-width="5" /></g>
+        <g v-for="x in [22, 79]" :key="x" :transform="`translate(${x},40)`"><use class="rolling-wheel" :href="`#${id}-wheel`" /></g>
       </g>
-      <g fill="#152d31" opacity=".85">
-        <path v-for="(x, i) of [8, 25, 143, 165, 290, 309, 542, 565, 785, 809, 861, 879]" :key="x" :transform="`translate(${x},${i % 3 * 6 + 107})`" d="M0 50h8V29h15L5-11-13 29H0Z" />
+      <g class="machine machine--dump" data-machine="dump">
+        <ellipse cx="100" cy="72" rx="105" ry="6" fill="#10272e" opacity=".35" /><use :href="`#${id}-track`" x="3" y="47" /><use :href="`#${id}-track`" x="118" y="47" />
+        <g class="machine-body"><path d="M8 37h177v18H8Z" fill="#253c44" /><g class="dump-bed"><path d="M4 6h109l-9 30H18Z" fill="#487489" stroke="#93b7b5" stroke-width="3" /><path d="M14 13h87M32 9v20M56 9v22M81 9v21" stroke="#244d62" stroke-width="3" /><path d="M15 5q32-14 77 0" fill="#d7ae75" /></g><path d="M136 0h43l20 21v28h-66Z" fill="#587f90" /><path d="M142 5h32l15 15h-47Z" fill="#c2d6d3" /><rect x="192" y="27" width="9" height="5" fill="#ffe4a4" /><path d="M116 35h22M143 0V-9h10" stroke="#394c52" stroke-width="5" /></g>
+        <g class="sand-stream" fill="#e6b778"><circle v-for="(x, i) in [-4, -10, -16, -23, -29]" :key="x" :cx="x" :cy="30 + i * 7" :r="2 + i % 2" /></g>
       </g>
-      <!-- Tres terrenos reconocibles, con relieve y huellas propias. -->
-      <path d="M0 183q81-33 168-9t121-5q68-50 134-13t116 20q90 35 169 4t192-10V240H0Z" fill="#283e3d" />
-      <path d="M0 197q89-36 182-7t122-18l-31 47H0Z" fill="#7c807a" />
-      <path d="M0 207q106-38 203-10l-19 11q-88-24-184 13Z" fill="#b29b72" opacity=".6" />
-      <path d="m315 185 34-36 26 2 25 21 31-8 25 31-16 19-145 3Z" fill="#62716d" />
-      <path d="m349 149 26 2 25 21-29-7-15 13-20-4Z" fill="#9ca69a" />
-      <path d="M474 206q96-39 194-12t119 13l-27 25H471Z" fill="#583d2d" />
-      <path class="journey-mud" d="M521 211q76-27 137-10t74 9q-70 25-211 1Z" fill="#957257" opacity=".75" />
-      <path d="M752 229q90-37 148-28V240H752Z" fill="#1c3031" />
-      <path d="M762 235q59-25 133-27" fill="none" stroke="#b9976a" stroke-width="3" stroke-dasharray="10 7" opacity=".38" />
-      <!-- El logo es el punto de salida; el camión lleva el nombre como carga. -->
-      <g class="journey-portal">
-        <circle cx="72" cy="125" r="47" fill="#10202b" stroke="#ef9a48" stroke-width="1" opacity=".8" />
-        <circle class="journey-logo-ring" cx="72" cy="125" r="44" fill="none" stroke="#ffb35d" stroke-width="2" stroke-dasharray="32 16" />
-        <image :href="appIcon" x="39" y="92" width="66" height="66" />
+      <g class="machine machine--dozer" data-machine="dozer">
+        <use :href="`#${id}-track`" x="10" y="43" /><g class="machine-body"><path d="M12 20h78v32H12Z" :fill="`url(#${id}-steel)`" /><path d="M26 19V-9h36v29" fill="#435c60" stroke="#d9aa64" stroke-width="4" /><path d="M34-4h22v19H34Z" fill="#b9d1ce" /><path d="M75 31 125 51M72 42l51 18" stroke="#5c7168" stroke-width="7" /><path d="M121 27q10 24 22 38l-29 4 2-43Z" fill="#dac18d" stroke="#9d744b" stroke-width="3" /></g><path class="dust" d="m145 64 12-9 17 13 12-7 14 9h-56" fill="#ddba83" opacity=".7" />
       </g>
-      <g class="journey-convoy">
-        <ellipse cx="110" cy="75" rx="106" ry="10" fill="#081718" opacity=".42" />
-        <g class="journey-body">
-          <path d="m215 48 114-20v55L215 60Z" :fill="`url(#${id}-beam)`" />
-          <path d="M13 48h193v16H13Z" fill="#26323a" />
-          <path d="M145 11h42l23 26v19h-66Z" :fill="`url(#${id}-paint)`" />
-          <path d="M152 16h31l13 18h-44Z" fill="#adc5c5" /><path d="m175 16 8 18h13l-13-18Z" fill="#d8e7dd" opacity=".6" />
-          <path d="M17 19h116v30H17Z" fill="#594e40" stroke="#a89167" stroke-width="2" />
-          <path d="M24 23h101v22H24Z" fill="#142530" />
-          <text x="74" y="37" text-anchor="middle" fill="#f7e5c5" font-family="Segoe UI, sans-serif" font-size="11" font-weight="700">RoadCraft Studio</text>
-          <path d="M28 49V15M123 49V15M137 47h9M200 55h17v8h-20" fill="none" stroke="#a6b1a6" stroke-width="4" />
-          <path d="M140 17V1h10" fill="none" stroke="#3c4a4d" stroke-width="5" />
-          <rect x="199" y="40" width="9" height="5" rx="1" fill="#ffe1a0" />
-          <rect x="155" y="39" width="7" height="2" rx="1" fill="#f2c385" />
-          <path d="M20 56q19-18 37 0M65 56q19-18 37 0M165 56q19-18 37 0" fill="none" stroke="#22313a" stroke-width="8" />
-        </g>
-        <g v-for="x of [39, 84, 183]" :key="x" :transform="`translate(${x},62)`">
-          <g class="journey-wheel">
-            <circle r="18" fill="#121c21" stroke="#425456" stroke-width="3" />
-            <circle r="9" fill="#b4b8aa" stroke="#526365" stroke-width="2" />
-            <path d="M-16 0h32M0-16v32M-11-11l22 22M-11 11l22-22" stroke="#647170" stroke-width="2" />
-            <circle r="4" fill="#293b43" />
-          </g>
-        </g>
-        <g class="journey-spray" fill="#c6a075">
-          <circle cx="11" cy="68" r="3" /><circle cx="2" cy="60" r="2" /><circle cx="-9" cy="64" r="3" /><circle cx="-18" cy="51" r="2" />
-        </g>
+      <g class="machine machine--paver" data-machine="paver">
+        <use :href="`#${id}-track`" x="35" y="43" /><g class="machine-body"><path d="M20 25h102v26H20Z" :fill="`url(#${id}-steel)`" /><path d="M72 26V-13M117 27V-13M60-14h70" stroke="#c9af79" stroke-width="5" /><path d="M86 12V0h16v12" fill="#213b46" /><path d="M120 11h39l-7 34h-34Z" fill="#d9a05a" stroke="#f2c983" stroke-width="3" /><path d="M2 52h45v16H2Z" fill="#384c50" /><path d="M14 39 26 52" stroke="#809287" stroke-width="6" /></g>
       </g>
-      <g class="journey-snow" fill="#dce8e2" opacity=".6">
-        <circle v-for="x of [32, 116, 187, 265, 368, 436, 583, 658, 740, 816, 866]" :key="x" :cx="x" :cy="(x * 7) % 130 + 15" r="1.5" />
+      <g class="machine machine--roller" data-machine="roller">
+        <g class="machine-body"><path d="M10 27h103v24H10Z" :fill="`url(#${id}-steel)`" /><path d="M51 27V-7h29v36" fill="#6e8b8b" stroke="#e1b56e" stroke-width="4" /><path d="M48-8h35" stroke="#e9c68b" stroke-width="5" /><path d="M54 0h22v21H54Z" fill="#c2d7d1" /></g><g transform="translate(26,51)"><use class="rolling-wheel" :href="`#${id}-wheel`" /></g><g transform="translate(101,50)"><circle r="21" fill="#798b86" stroke="#d3c6a5" stroke-width="3" /><circle class="rolling-wheel" r="11" fill="#566d70" stroke="#afb7a4" stroke-width="2" /><path d="M-6-12v24" stroke="#c9b889" stroke-width="3" /></g>
       </g>
-      <path d="M0 239H900" stroke="#ecb774" stroke-opacity=".35" />
+      <g class="machine machine--cargo" data-machine="cargo">
+        <ellipse cx="102" cy="65" rx="110" ry="5" fill="#10272e" opacity=".4" /><g class="machine-body"><path d="M7 40h201v17H7Z" fill="#2c3e45" /><use :href="`#${id}-cab`" x="156" y="5" /><path d="M9 4h132v37H9Z" fill="#203a48" stroke="#c7a375" stroke-width="2" /><path d="M15 9h120v27H15Z" fill="#142c3b" /><text x="75" y="26" fill="#f6dba9" font-family="Segoe UI, sans-serif" text-anchor="middle" font-size="11" font-weight="700">RoadCraft Studio</text><path d="M19 43V0M133 43V0" stroke="#9db0a5" stroke-width="4" /></g><g v-for="x in [28, 65, 179]" :key="x" :transform="`translate(${x},53)`"><use class="rolling-wheel" :href="`#${id}-wheel`" /></g>
+      </g>
+      <path d="M0 239H900" stroke="#d7b68c" opacity=".35" />
     </svg>
   </div>
 </template>
@@ -80,37 +59,45 @@ const appIcon = new URL('../../assets/app-icon.png', import.meta.url).href
 </script>
 
 <style scoped>
-.startup-journey { width: 100%; overflow: hidden; border-radius: 18px; isolation: isolate; background: #13242e; }
+.startup-journey { --journey-time: 28s; width: 100%; overflow: hidden; border-radius: 18px; isolation: isolate; background: #132a38; }
 svg { display: block; width: 100%; height: auto; }
-.journey-convoy { transform-origin: 0 0; animation: journey-drive 9s cubic-bezier(.3, .05, .35, 1) both; }
-.journey-body { animation: journey-suspension .65s ease-in-out 12 alternate; }
-.journey-wheel { animation: journey-roll .72s linear 12; }
-.journey-portal { animation: journey-launch 3s ease-out both; }
-.journey-logo-ring { transform-origin: 72px 125px; animation: journey-roll 6s linear infinite; }
-.journey-spray { animation: journey-spray .5s ease-out 18; }
-.journey-snow { animation: journey-snow 7s linear infinite; }
-.journey-mud { animation: journey-water 4s ease-in-out infinite alternate; }
-.startup-journey--loop .journey-convoy { animation: journey-drive 12s cubic-bezier(.3, .05, .35, 1) infinite; }
-.startup-journey--loop .journey-wheel, .startup-journey--loop .journey-body, .startup-journey--loop .journey-spray { animation-iteration-count: infinite; }
-@keyframes journey-drive {
-  0% { opacity: 0; transform: translate(64px, 143px) scale(.04); }
-  8% { opacity: 1; transform: translate(74px, 135px) scale(.38); }
-  18% { transform: translate(150px, 111px) scale(1); }
-  35% { transform: translate(265px, 104px) rotate(-7deg); }
-  46% { transform: translate(342px, 91px) rotate(4deg); }
-  60% { transform: translate(460px, 118px) rotate(1deg); }
-  76% { transform: translate(586px, 125px) rotate(-2deg); }
-  90%, 100% { opacity: 1; transform: translate(637px, 125px); }
-}
-@keyframes journey-roll { to { transform: rotate(360deg); } }
-@keyframes journey-suspension { to { transform: translateY(1.5px) rotate(.25deg); } }
-@keyframes journey-launch { 30% { filter: drop-shadow(0 0 14px #ffab53); } 100% { opacity: .75; } }
-@keyframes journey-snow { from { transform: translateY(-8px); } to { transform: translate(16px, 14px); } }
-@keyframes journey-spray { from { opacity: .9; transform: translate(7px, -3px) scale(.8); } to { opacity: 0; transform: translate(-14px, 7px) scale(1.2); } }
-@keyframes journey-water { to { opacity: .45; } }
+.machine { opacity: 0; transform: translate(-240px, 140px); animation-duration: var(--journey-time); animation-timing-function: linear; animation-fill-mode: both; }
+.startup-journey--loop .machine, .startup-journey--loop .road-progress { animation-iteration-count: infinite; }
+.machine--scout { animation-name: scout; }
+.machine--dump { animation-name: dump; }
+.machine--dozer { animation-name: dozer; }
+.machine--paver { animation-name: paver; }
+.machine--roller { animation-name: roller; }
+.machine--cargo { animation-name: cargo; }
+.road-progress { transform: scaleX(0); transform-origin: 0 220px; animation-duration: var(--journey-time); animation-timing-function: linear; animation-fill-mode: both; }
+.road-progress--sand { animation-name: sand-road; }
+.road-progress--graded { animation-name: graded-road; }
+.road-progress--paved { animation-name: paved-road; }
+.road-progress--rolled { animation-name: rolled-road; }
+.rolling-wheel { animation: spin .8s linear infinite; transform-box: fill-box; transform-origin: center; }
+.machine-body { animation: suspension .7s ease-in-out infinite alternate; }
+.dump-bed { transform-origin: 7px 34px; transform: rotate(-12deg); }
+.sand-stream { animation: sand .42s linear infinite; }
+.dust { animation: sand .7s ease-out infinite; }
+.logo-ring { transform-origin: 58px 137px; animation: spin 24s linear infinite; }
+@keyframes scout { 0% { opacity: 0; transform: translate(52px, 153px) scale(.1); } 2% { opacity: 1; transform: translate(48px, 153px) scale(.6); } 10%, 89% { opacity: 1; transform: translate(773px, 143px) scale(.8); } 95% { opacity: 1; transform: translate(940px, 143px) scale(.8); } 100% { opacity: 0; transform: translate(940px, 143px) scale(.8); } }
+@keyframes dump { 0%, 11% { opacity: 0; transform: translate(-230px, 139px); } 12% { opacity: 1; } 26% { opacity: 1; transform: translate(940px, 139px); } 26.1%, 100% { opacity: 0; transform: translate(940px, 139px); } }
+@keyframes dozer { 0%, 27% { opacity: 0; transform: translate(-175px, 144px); } 28% { opacity: 1; } 42% { opacity: 1; transform: translate(940px, 144px); } 42.1%, 100% { opacity: 0; transform: translate(940px, 144px); } }
+@keyframes paver { 0%, 43% { opacity: 0; transform: translate(-180px, 144px); } 44% { opacity: 1; } 58% { opacity: 1; transform: translate(940px, 144px); } 58.1%, 100% { opacity: 0; transform: translate(940px, 144px); } }
+@keyframes roller { 0%, 59% { opacity: 0; transform: translate(-150px, 144px); } 60% { opacity: 1; } 74% { opacity: 1; transform: translate(940px, 144px); } 74.1%, 100% { opacity: 0; transform: translate(940px, 144px); } }
+@keyframes cargo { 0%, 75% { opacity: 0; transform: translate(-230px, 149px); } 76% { opacity: 1; } 89% { opacity: 1; transform: translate(940px, 149px); } 89.1%, 100% { opacity: 0; transform: translate(940px, 149px); } }
+@keyframes sand-road { 0%, 14% { transform: scaleX(0); } 25%, 100% { transform: scaleX(1); } }
+@keyframes graded-road { 0%, 28% { transform: scaleX(0); } 40%, 100% { transform: scaleX(1); } }
+@keyframes paved-road { 0%, 45% { transform: scaleX(0); } 57%, 100% { transform: scaleX(1); } }
+@keyframes rolled-road { 0%, 61% { transform: scaleX(0); } 72%, 100% { transform: scaleX(1); } }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes suspension { to { transform: translateY(.8px); } }
+@keyframes sand { from { opacity: .9; transform: translate(0, -4px); } to { opacity: 0; transform: translate(-9px, 7px); } }
 @media (prefers-reduced-motion: reduce) {
   .startup-journey * { animation: none !important; }
-  .journey-convoy { transform: translate(637px, 125px); }
-  .journey-spray { opacity: 0; }
+  .road-progress { transform: scaleX(1); }
+  .machine--cargo { opacity: 1; transform: translate(483px, 149px); }
+  .machine--scout { opacity: 1; transform: translate(773px, 143px) scale(.8); }
+  .sand-stream, .dust { opacity: 0; }
 }
 </style>

@@ -17,8 +17,13 @@ export const locales = [
 ]
 
 const en: Record<string, string> = {
+  showModel: '3D model', showCover: 'Original cover',
+  parameterSections: 'Parameter categories', control_player: 'Player configuration', control_ai: 'AI configuration', control_unknown: 'Unconfirmed use', rustyVariant: 'Rusty / old variant',
+  obtain_shop: 'Shop configuration', obtain_scenario: 'Scenario / special variant', obtain_unknown: 'Availability not specified',
+  configuredPrice: 'Configured cost', requiredRank: 'Required rank', accessConfigHelp: 'The actual unlock depends on the map, objectives, DLC and save game. This does not change your fleet.',
+  aiRouteInfo: 'AI route / delivery unit', aiRouteHelp: 'Convoys use the base_ variants selected in Regular Pool and Test Pool. Shared appearance does not mean this is the player’s vehicle.',
   vehicleView: 'Vehicle view', terrain: 'Terrain', terrain_auto: 'Automatic route', terrain_construction: 'Construction', terrain_asphalt: 'Asphalt', terrain_mud: 'Mud', terrain_forest: 'Forest', terrain_rock: 'Rock',
-  originalSourceModel: 'Original source model · 3D view', loadingModel: 'Reading the local model…', coverNot3d: 'Vehicle cover · not a 3D model', viewOnly: 'Visual preview only. Does not simulate the game physics. Compiled TPL models are not supported yet.',
+  originalSourceModel: 'Original source model · 3D view', loadingModel: 'Reading the local model…', coverNot3d: 'Vehicle cover · not a 3D model', viewOnly: 'Local 3D preview, not the game engine. Special materials, tracks and equipment animations may differ.',
   backToLibrary: 'Library', vehicleSettings: 'Vehicle settings', resetCamera: 'Fit vehicle', pauseMotion: 'Pause motion', resumeMotion: 'Resume motion', noVehicleImage: 'No compatible model or vehicle image',
   appSubtitle: 'Safe vehicle mod workspace',
   vehicles: 'Vehicles', trailers: 'Trailers', aiVehicles: 'AI units', modified: 'Edited', other: 'Other', all: 'All',
@@ -64,8 +69,13 @@ const en: Record<string, string> = {
 
 const es: Record<string, string> = {
   ...en,
+  showModel: 'Modelo 3D', showCover: 'Carátula original',
+  parameterSections: 'Categorías de ajustes', control_player: 'Configuración de jugador', control_ai: 'Configuración de IA', control_unknown: 'Uso no confirmado', rustyVariant: 'Variante oxidada / old',
+  obtain_shop: 'Configuración de tienda', obtain_scenario: 'Variante de escenario / especial', obtain_unknown: 'Disponibilidad no especificada',
+  configuredPrice: 'Precio configurado', requiredRank: 'Rango necesario', accessConfigHelp: 'El desbloqueo real depende del mapa, objetivos, DLC y partida. Esto no cambia tu flota.',
+  aiRouteInfo: 'Unidad de IA para rutas / entregas', aiRouteHelp: 'Los convoyes usan las variantes base_ elegidas en Regular Pool y Test Pool. Compartir apariencia no significa que sea el vehículo del jugador.',
   vehicleView: 'Vista del vehículo', terrain: 'Terreno', terrain_auto: 'Ruta automática', terrain_construction: 'Obras', terrain_asphalt: 'Asfalto', terrain_mud: 'Barro', terrain_forest: 'Bosque', terrain_rock: 'Rocas',
-  originalSourceModel: 'Modelo fuente original · vista 3D', loadingModel: 'Leyendo el modelo local…', coverNot3d: 'Carátula del vehículo · no es un modelo 3D', viewOnly: 'Solo vista previa. No simula la física del juego. Los modelos TPL compilados aún no son compatibles.',
+  originalSourceModel: 'Modelo fuente original · vista 3D', loadingModel: 'Leyendo el modelo local…', coverNot3d: 'Carátula del vehículo · no es un modelo 3D', viewOnly: 'Vista 3D local, no es el motor del juego. Algunos materiales especiales, orugas y animaciones del equipo pueden diferir.',
   backToLibrary: 'Biblioteca', vehicleSettings: 'Ajustes del vehículo', resetCamera: 'Encuadrar vehículo', pauseMotion: 'Pausar movimiento', resumeMotion: 'Reanudar movimiento', noVehicleImage: 'Sin modelo compatible ni imagen del vehículo',
   appSubtitle: '',
   vehicles: 'Vehículos', trailers: 'Tráilers', aiVehicles: 'Uso de IA', modified: 'Modificados', other: 'Otros', all: 'Todos',

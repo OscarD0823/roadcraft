@@ -51,8 +51,17 @@ try {
   const nativeWindow=JSON.parse(stdout.trim())
   assert.equal(nativeWindow.Visible,true,'Application loaded but its Windows window stayed hidden')
   assert.equal(nativeWindow.Title,'RoadCraft Studio')
-  const counts=await evaluate('({cards:document.querySelectorAll(".content-card").length,animation:!!document.querySelector(".workspace-journey .journey-convoy")})')
+  const counts=await evaluate('({cards:document.querySelectorAll(".content-card").length,animation:document.querySelectorAll(".workspace-journey [data-machine]").length===6})')
   assert.ok(counts.animation)
+  const animation=[]
+  for(const [fraction,expected] of [[.05,['scout']],[.19,['scout','dump']],[.35,['scout','dozer']],[.51,['scout','paver']],[.67,['scout','roller']],[.82,['scout','cargo']],[.92,['scout']]]){
+    await evaluate(`document.querySelectorAll('.workspace-journey .machine,.workspace-journey .road-progress').forEach(node=>node.getAnimations().forEach(a=>{a.pause();a.currentTime=28000*${fraction}}))`)
+    await new Promise(r=>setTimeout(r,50))
+    const visible=await evaluate(`[...document.querySelectorAll('.workspace-journey [data-machine]')].filter(n=>Number(getComputedStyle(n).opacity)>.8).map(n=>n.dataset.machine)`)
+    assert.deepEqual(visible,expected,'Wrong construction stage at '+fraction)
+    animation.push({fraction,visible})
+  }
+  await evaluate(`document.querySelectorAll('.workspace-journey .machine,.workspace-journey .road-progress').forEach(node=>node.getAnimations().forEach(a=>a.play()))`)
   const scan=await evaluate('window.roadcraft.scan()')
   const all=scan.entries, images=[]
   // Read every cover independently of lazy loading. No game or save writes.
@@ -67,10 +76,11 @@ try {
     if(await evaluate('document.documentElement.scrollWidth > innerWidth')) throw new Error('Horizontal overflow at '+width)
   }
   await evaluate('document.querySelector(".content-card").click()')
-  await wait('document.querySelector(".vehicle-drive")?.dataset.modelState === "cover"')
+  await wait('["cover","ready"].includes(document.querySelector(".vehicle-drive")?.dataset.modelState)')
   const base=await evaluate('({state:document.querySelector(".vehicle-drive").dataset.modelState,cover:!!document.querySelector(".drive-cover img")?.naturalWidth})')
+  assert.equal(base.state,'ready','Native TPL model must replace the cover')
   let shot=await call('Page.captureScreenshot',{format:'png'});await writeFile(join(output,'base-cover.png'),Buffer.from(shot.data,'base64'))
-  const found=await evaluate('(()=>{const c=[...document.querySelectorAll(".content-card")].find(c=>c.textContent.includes("aramatsu_crayfish_wood_grapple_mod.bro"));c?.click();return !!c})()')
+  const found=await evaluate('(()=>{document.querySelector(".inspector__header button")?.click();const c=[...document.querySelectorAll(".content-card")].find(c=>c.textContent.includes("aramatsu_crayfish_wood_grapple_mod.bro"));c?.click();return !!c})()')
   if(!found)throw new Error('Missing official FBX source vehicle')
   await wait('document.querySelector(".vehicle-drive")?.dataset.modelState === "ready"')
   await wait('!!document.querySelector(".drive-scene")?.dataset.frame')
@@ -95,18 +105,39 @@ try {
     assert.equal(after.value,'123');assert.equal(after.sameCanvas,true);assert.equal(after.y,result.scene.y)
     await evaluate(`(()=>{const select=document.querySelector('.drive-tools select');select.value='asphalt';select.dispatchEvent(new Event('change',{bubbles:true}));document.querySelector('.fit-camera').click();document.querySelector('.drive-tools button').click();document.querySelector('.settings-scroll').scrollTop=0})()`)
     assert.equal(await evaluate(`document.querySelector('.settings-scroll input[type=number]').value`),'123')
+    const categories=await evaluate(`document.querySelectorAll('.parameter-tabs button').length`)
+    assert.ok(categories>1,'Parameters must have categories')
+    await evaluate(`document.querySelectorAll('.parameter-tabs button')[1].click()`)
+    assert.equal(await evaluate(`document.querySelectorAll('.parameter-group').length`),1,'Only the selected category must be visible')
+    await evaluate(`document.querySelectorAll('.parameter-tabs button')[0].click()`)
+    assert.equal(await evaluate(`document.querySelector('.settings-scroll input[type=number]').value`),'123','Category switch lost pending edits')
     shot=await call('Page.captureScreenshot',{format:'png'});await writeFile(join(output,'source-'+width+'.png'),Buffer.from(shot.data,'base64'))
     layout.push(result)
   }
   const previews=[]
-  if(process.env.ROADCRAFT_ALL_ENTRIES==='1'){
+  {
+    const selected=process.env.ROADCRAFT_ALL_ENTRIES==='1' ? all : all.filter(e=>e.relativePath.endsWith('tuz_119lynx_mod.bro') || [
+      'auto_aramatsu_bowhead_heavy_dumptruck_new','auto_don_71','auto_dragline_5111b_building_demolisher_old',
+      'auto_wayfarer_st7050_cargo_main','auto_wayfarer_st7050_trailer_cargo_ai','auto_base_alces_c400_cargo_res'
+    ].includes(e.internalName))
     await evaluate(`document.querySelectorAll('.nav-button')[0].click()`)
-    for(const entry of all){
+    for(const entry of selected){
       await evaluate(`(()=>{document.querySelector('.inspector__header button')?.click();const card=[...document.querySelectorAll('.content-card')].find(c=>c.textContent.includes(${JSON.stringify(entry.relativePath)}));if(!card)throw new Error('Missing catalog card');card.click()})()`)
       await wait(`['ready','cover'].includes(document.querySelector('.vehicle-drive')?.dataset.modelState)`)
-      const preview=await evaluate(`({name:document.querySelector('.inspector h2').textContent,state:document.querySelector('.vehicle-drive').dataset.modelState,image:document.querySelector('.drive-cover img')?.complete && document.querySelector('.drive-cover img')?.naturalWidth>0})`)
+      const preview=await evaluate(`({name:document.querySelector('.inspector h2').textContent,state:document.querySelector('.vehicle-drive').dataset.modelState,image:document.querySelector('.drive-cover img')?.complete && document.querySelector('.drive-cover img')?.naturalWidth>0,dataset:{...document.querySelector('.drive-scene').dataset},categories:document.querySelectorAll('.parameter-tabs button').length})`)
       if(entry.imageUrl && preview.state==='cover') await wait(`document.querySelector('.drive-cover img')?.naturalWidth>0`)
+      if(entry.kind!=='other') assert.equal(preview.state,'ready','Missing 3D model '+entry.internalName)
+      if(preview.state==='ready') await wait(`!!document.querySelector('.drive-scene')?.dataset.frame`)
+      if(entry.internalName==='auto_aramatsu_bowhead_heavy_dumptruck_new'){
+        assert.ok(Number(preview.dataset.shadingMaps)>2,'Missing original Bowhead materials')
+        shot=await call('Page.captureScreenshot',{format:'png'});await writeFile(join(output,'bowhead-native.png'),Buffer.from(shot.data,'base64'))
+        await evaluate(`document.querySelector('.view-alternative').click()`)
+        await wait(`document.querySelector('.drive-cover img')?.naturalWidth>0`)
+        await evaluate(`document.querySelector('.view-alternative').click()`)
+        assert.equal(await evaluate(`!!document.querySelector('.drive-cover')`),false,'Model/cover comparison did not return to 3D')
+      }
       previews.push({id:entry.id,...preview})
+      console.log('Preview verified: '+entry.internalName+' '+preview.state)
     }
   }
   const classification={}
@@ -129,5 +160,5 @@ try {
   }
   await evaluate(`(()=>{const select=document.querySelector('.language-select select');select.value='es';select.dispatchEvent(new Event('change',{bubbles:true}))})()`)
   if(errors.length)throw new Error(errors.join('\n'))
-  const result={nativeWindow,counts,base,source,layout,classification,images,previews,languages,errors,warnings};await writeFile(join(output,'results.json'),JSON.stringify(result,null,2));console.log(JSON.stringify({nativeWindow,counts,base,source,layout,classification,images:images.length,missingImages:images.filter(i=>!i.image).map(i=>i.name),previews:previews.length,languages,errors,warnings},null,2))
+  const result={nativeWindow,counts,animation,base,source,layout,classification,images,previews,languages,errors,warnings};await writeFile(join(output,'results.json'),JSON.stringify(result,null,2));console.log(JSON.stringify({nativeWindow,counts,animation,base,source,layout,classification,images:images.length,missingImages:images.filter(i=>!i.image).map(i=>i.name),previews:previews.length,languages,errors,warnings},null,2))
 } finally {socket?.close();child.kill()}

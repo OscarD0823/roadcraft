@@ -37,6 +37,13 @@ export interface ContentEntry {
   modifiedAt: number
   imageUrl?: string
   imageKind?: 'custom' | 'shop' | 'related' | 'mod'
+  access?: {
+    control: 'player' | 'ai' | 'unknown'
+    variant: 'rusty' | 'standard'
+    obtain: 'shop' | 'scenario' | 'unknown'
+    buyCost?: number
+    rankToUnlock?: number
+  }
   parameters: EditableParameter[]
 }
 
@@ -119,6 +126,7 @@ export interface PreviewMaterial {
 }
 
 export interface VehiclePreviewAsset {
+  format?: 'fbx' | 'tpl'
   modelUrl: string
   modelImportScale: number
   textures: Record<string, string>

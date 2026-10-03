@@ -1,6 +1,19 @@
 # RoadCraft Studio
 
-## Versión 0.7.1
+## Versión 0.8.0
+
+- Catálogo completo de la instalación probada: 116 configuraciones de vehículo, 6 tráilers, 74 variantes de IA y un recurso adicional.
+- Detecta las clases `trucks/base/` usadas en rutas de IA; no confunde las versiones recuperadas `old` con estas copias.
+- Precio, rango, tipo de control y variante oxidada visibles. La disponibilidad real depende de mapa, objetivos, DLC y partida.
+- Ajustes agrupados en pestañas por categoría para vehículos, tráilers e IA, sin perder cambios pendientes al cambiar de grupo.
+- Nuevo lector propio de TPL/TPL_DATA: geometría original del catálogo, texturas locales y ruedas separadas, además de FBX fuente.
+- Los 118 modelos diferentes encontrados en la instalación pasan las comprobaciones de geometría, índices, normales y dimensiones.
+- Animación del logo con explorador, volquete descargando arena, dozer, asfaltadora, rodillo y camión final; el explorador se retira al terminar.
+- Una nueva búsqueda también renueva los índices de modelos y texturas.
+
+La [investigación y sus fuentes oficiales](docs/vehicle-research.md) explican cómo se determinan IA, tienda y variantes de misión. La vista 3D no es el motor del juego: orugas continuas, tintes y algunos materiales y animaciones especiales pueden diferir.
+
+## Mejoras anteriores
 
 - Corrige una condición de carrera al abrir el programa: la ventana se muestra tras el primer dibujo, sin perder el evento durante la carga.
 
@@ -16,7 +29,7 @@ La lectura de materiales y ruedas sigue las especificaciones del [SDK oficial de
 - Animación integrada en la cabecera del programa.
 - Vista del vehículo dentro del inspector, con pausa y terrenos automáticos o manuales.
 - Lectura de modelos fuente FBX y materiales del editor oficial cuando están presentes.
-- Las unidades del catálogo base con TPL compilado mantienen su imagen original sobre el recorrido animado; todavía no se presentan como modelos 3D compatibles.
+- Si un modelo usa un formato no compatible, se conserva la imagen original como alternativa y se identifica expresamente como carátula.
 - Distribución y actualizaciones exclusivamente por GitHub. No se incluyen modelos ni texturas del juego en el instalador.
 
 La escena es una previsualización propia, no el motor ni la física de RoadCraft. Los ajustes de motor no deforman el vehículo. Cambiar parámetros funcionales no implica modificar el modelo visual.

@@ -18,7 +18,7 @@ interface TestableService {
   replaceParameterValue(source: string, spec: ParameterSpec, value: number): string
   replaceLinkedParameterValues(source: string, spec: ParameterSpec, value: number): string
   parsePackagedVehicle(archived: TextArchiveEntry, packagePath: string, packagedImages: string[], truckLibrary: Map<string, TruckLibraryRecord>): {
-    entry: { kind: string }
+    entry: { kind: string; access?: { control: string; variant: string; obtain: string } }
   }
 }
 
@@ -97,6 +97,10 @@ async function main() {
   }
   assert.equal(resolvePackagedVehicleMetadata('auto_5111b_dragline_building_demolisher', truckLibrary).aiOnly, false)
   assert.equal(resolvePackagedVehicleMetadata('auto_dragline_5111b_building_demolisher_old', truckLibrary).aiOnly, false)
+  const rusty = service.parsePackagedVehicle(await loadVehicleEntry('auto_dragline_5111b_building_demolisher_old'), packagePath, [], truckLibrary).entry
+  assert.equal(rusty.kind, 'truck', 'Un camión recuperado no debe convertirse en unidad IA')
+  assert.equal(rusty.access?.variant, 'rusty')
+  assert.equal(rusty.access?.obtain, 'scenario')
 
   await service.init()
   const firstScan = await service.scan()
@@ -114,9 +118,11 @@ async function main() {
     'auto_qa_don',
     'auto_scout_pz14_prot'
   ]
-  assert.equal(packaged.length, 121, `Se esperaban 121 clases del PAK y llegaron ${packaged.length}`)
-  assert.deepEqual(aiEntries.map(entry => entry.internalName).sort(), aiOnly.sort())
-  assert.deepEqual(missingImages.map(entry => entry.internalName).sort(), expectedWithoutOfficialImage.sort())
+  assert.equal(packaged.length, 194, `Se esperaban 194 clases del PAK y llegaron ${packaged.length}`)
+  const baseCopies = packaged.filter(entry => entry.internalName.startsWith('auto_base_'))
+  assert.equal(baseCopies.length, 73)
+  assert.deepEqual(aiEntries.map(entry => entry.internalName).sort(), [...aiOnly, ...baseCopies.map(entry => entry.internalName)].sort())
+  assert.deepEqual(missingImages.filter(entry => !entry.internalName.startsWith('auto_base_')).map(entry => entry.internalName).sort(), expectedWithoutOfficialImage.sort())
   assert.equal(scan.entries.some(entry => /wheel/i.test(entry.internalName)), false, 'Las llantas no deben aparecer en el catálogo')
   await rm(testUserData, { recursive: true, force: true })
 

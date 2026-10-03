@@ -27,6 +27,9 @@ jobs:
       - name: Validar proyecto
         run: npm run check
 
+      - name: Validar límites del lector TPL
+        run: npm run test:tpl
+
       - name: Crear instalador
         run: npm run make
 

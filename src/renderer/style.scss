@@ -200,6 +200,15 @@ button { cursor: pointer; }
   letter-spacing: 0.14em;
 }
 
+.parameter-tabs {
+  display: flex; flex-wrap: wrap; flex: 0 0 auto; gap: 5px; padding: 10px;
+  max-height: 122px; overflow: auto; border-bottom: 1px solid var(--border); background: #f8fafc;
+  button { display: flex; align-items: center; gap: 5px; padding: 7px 9px; min-width: 0; border: 1px solid #dbe2e9; border-radius: 8px; background: white; color: #526174; font-size: 11px; }
+  button.active { background: #fff0e0; color: #9a4609; border-color: #f2b575; font-weight: 700; }
+  small { padding: 1px 5px; border-radius: 5px; background: #52617414; }
+}
+.access-notice { display: grid; gap: 5px; padding: 10px 12px; margin-bottom: 10px; border-radius: 10px; background: #edf4f7; color: #465e70; font-size: 11px; line-height: 1.5; }
+
 .path-chip {
   display: flex;
   align-items: center;

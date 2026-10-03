@@ -2,19 +2,20 @@
   <section class="vehicle-drive" :data-model-state="state">
     <div class="drive-tools">
       <strong>{{ t('vehicleView') }}</strong>
+      <button v-if="entry.imageUrl && state === 'ready'" class="view-alternative" :aria-pressed="showCover" :title="t(showCover ? 'showModel' : 'showCover')" @click="showCover = !showCover">{{ t(showCover ? 'showModel' : 'showCover') }}</button>
       <button :aria-label="t(moving ? 'pauseMotion' : 'resumeMotion')" :title="t(moving ? 'pauseMotion' : 'resumeMotion')" @click="toggleMotion">{{ moving ? 'Ⅱ' : '▶' }}</button>
       <button class="fit-camera" :title="t('resetCamera')" :aria-label="t('resetCamera')" @click="stage?.resetCamera()">⤢</button>
       <select v-model="terrain" :aria-label="t('terrain')">
         <option v-for="item in ['auto', 'construction', 'asphalt', 'mud', 'forest', 'rock']" :key="item" :value="item">{{ t('terrain_' + item) }}</option>
       </select>
     </div>
-    <div ref="host" class="drive-scene">
-      <div v-if="state !== 'ready'" class="drive-cover" :class="{ 'drive-cover--moving': moving }">
+    <div ref="host" class="drive-scene" :class="{ 'drive-scene--cover': showCover }">
+      <div v-if="state !== 'ready' || showCover" class="drive-cover" :class="{ 'drive-cover--moving': moving }">
         <img v-if="entry.imageUrl && !imageFailed" :src="entry.imageUrl" :alt="entry.name" @error="imageFailed = true">
         <span v-else>{{ entry.name }}<small>{{ t('noVehicleImage') }}</small></span>
       </div>
     </div>
-    <p>{{ t(state === 'ready' ? 'originalSourceModel' : state === 'loading' ? 'loadingModel' : 'coverNot3d') }}</p>
+    <p>{{ t(showCover ? 'coverNot3d' : state === 'ready' ? 'originalSourceModel' : state === 'loading' ? 'loadingModel' : 'coverNot3d') }}</p>
     <small class="preview-note" :title="t('viewOnly')">{{ t('viewOnly') }}</small>
   </section>
 </template>
@@ -32,10 +33,12 @@ const props = defineProps<{ entry: ContentEntry; t: (key: string) => string }>()
 const host = ref<HTMLElement>(), state = ref('loading'), terrain = ref<Terrain>('auto')
 const moving = ref(!matchMedia('(prefers-reduced-motion: reduce)').matches)
 const imageFailed = ref(false)
+const showCover = ref(false)
 let stage: DrivingStage | undefined, disposed = false
 const pendingModels = new Set<THREE.Object3D>(), loadedTextures = new Set<THREE.Texture>()
 const EMPTY_TEXTURE = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4//8/AwAI/AL+X2NDNwAAAABJRU5ErkJggg=='
 watch(terrain, value => { if (stage) stage.terrain = value })
+watch(showCover, value => { if (stage) stage.moving = moving.value && !value })
 onMounted(async () => {
   try {
     stage = new DrivingStage(host.value!, true)
@@ -49,7 +52,8 @@ onMounted(async () => {
       const name = decodeURIComponent(url).replaceAll('\\', '/').split('/').pop()?.toLowerCase() ?? ''
       return asset.textures[name] ?? EMPTY_TEXTURE
     })
-    const loader = new FBXLoader(manager), model = await loader.loadAsync(asset.modelUrl)
+    const loader = new FBXLoader(manager), model = asset.format === 'tpl'
+      ? await new THREE.ObjectLoader().loadAsync(asset.modelUrl) : await loader.loadAsync(asset.modelUrl)
     pendingModels.add(model)
     const maps = new Map<string, THREE.Texture>(), materials = new Map<string, THREE.Material>()
     async function getTexture(url: string, color: boolean) {
@@ -83,9 +87,9 @@ onMounted(async () => {
           if (def?.normal) { m.normalMap = await getTexture(def.normal, false); m.normalScale.set(1, -1) }
           if (def?.shading) configureRoadShading(m, await getTexture(def.shading, false))
           if (def?.emissive) { m.emissiveMap = await getTexture(def.emissive, true); m.emissive.set(0xffffff); m.emissiveIntensity = .5 }
-          if (def?.transparent) { m.transparent = true; m.depthWrite = false }
+          if (def?.transparent) { m.transparent = true; m.depthWrite = false; if (asset!.format === 'tpl') { m.opacity = .4; m.color.set(0x9cbdc9) } }
           if (/alphakill/i.test(def?.type ?? '')) m.alphaTest = .4
-          if (/decal/i.test(def?.type ?? '')) { m.polygonOffset = true; m.polygonOffsetFactor = -1; m.polygonOffsetUnits = -1 }
+          if (/decal/i.test(def?.type ?? '')) { m.transparent = true; m.depthWrite = false; m.polygonOffset = true; m.polygonOffsetFactor = -1; m.polygonOffsetUnits = -1 }
           materials.set(old.name, m); replacements.push(m); old.dispose()
         }
         object.material = Array.isArray(object.material) ? replacements : replacements[0]
@@ -112,7 +116,13 @@ onMounted(async () => {
       host.value!.dataset.wheels = String(movingWheels.length)
       host.value!.dataset.wheelScale = String(asset.wheelScale)
     }
-    model.scale.multiplyScalar(fbxMetersScale(model))
+    if (asset.format === 'tpl') {
+      const wheels: THREE.Object3D[] = []
+      model.traverse(object => { if (object.userData.drivenWheel) wheels.push(object) })
+      if (wheels.length) stage.setDrivenParts(wheels, .55)
+      host.value!.dataset.wheels = String(wheels.length)
+      host.value!.dataset.format = 'tpl'
+    } else model.scale.multiplyScalar(fbxMetersScale(model))
     const size = visibleVehicleBounds(model).getSize(new THREE.Vector3())
     if (!size.toArray().every(n => Number.isFinite(n) && n > .1 && n < 100)) throw new Error('Invalid source model dimensions')
     host.value!.dataset.materials = String(materials.size)
@@ -120,7 +130,7 @@ onMounted(async () => {
     stage.setBody(model); state.value = 'ready'
   } catch (error) { if (!disposed) { state.value = 'cover'; console.warn('Vista 3D:', error) } }
 })
-function toggleMotion() { moving.value = !moving.value; if (stage) stage.moving = moving.value }
+function toggleMotion() { moving.value = !moving.value; if (stage) stage.moving = moving.value && !showCover.value }
 function disposeModel(model: THREE.Object3D) {
   model.traverse(o => { if (o instanceof THREE.Mesh) { o.geometry.dispose(); for (const m of Array.isArray(o.material) ? o.material : [o.material]) m.dispose() } })
 }
@@ -133,6 +143,7 @@ onBeforeUnmount(() => { disposed = true; stage?.dispose(); pendingModels.forEach
 button, select { font: inherit; min-width: 0; max-width: 145px; padding: 4px 7px; border: 1px solid #536875; border-radius: 6px; color: #e8eff3; background: #213642; }
 .drive-scene { flex: 1 1 0; min-height: 90px; position: relative; overflow: hidden; }
 .drive-scene :deep(canvas) { display: block; width: 100%; height: 100%; touch-action: none; }
+.drive-scene--cover :deep(canvas) { visibility: hidden; }
 .drive-cover { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 10px; pointer-events: none; }
 .drive-cover img { max-width: 88%; max-height: 85%; object-fit: contain; border-radius: 9px; box-shadow: 0 14px 25px #15242c45; }
 .drive-cover--moving img { animation: drive-bob 2s ease-in-out infinite alternate; }

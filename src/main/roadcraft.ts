@@ -10,6 +10,8 @@ import type { ContentEntry, ContentKind, EditableParameter, OperationResult, Par
 import { applySaveGameChanges, createSaveGameData, decodeCompleteSave, encodeCompleteSave } from './save-game'
 import { readMatchingBinaryEntries, readMatchingTextEntries, replaceTextEntry, type TextArchiveEntry } from './zip-package'
 import { decodeRoadCraftShopTexture, decodeRoadCraftTexture } from './shop-texture'
+import { CompiledPreviewStore } from './compiled-preview'
+import { arrayObjects } from './source-blocks'
 
 interface PackageBackupState {
   backupPath: string
@@ -57,12 +59,16 @@ export interface TruckLibraryRecord {
   name: string
   uiIcon?: string
   isBase: boolean
+  buyCost?: number
+  rankToUnlock?: number
 }
 
 interface PackagedVehicleMetadata {
   registered: boolean
   aiOnly: boolean
   uiIcon?: string
+  buyCost?: number
+  rankToUnlock?: number
 }
 
 interface TextureDescriptor {
@@ -71,7 +77,8 @@ interface TextureDescriptor {
 }
 
 const DEFAULT_INSTALL_PATH = 'E:\\SteamLibrary\\steamapps\\common\\RoadCraft'
-const BASE_VEHICLE_PATTERN = /^ssl\/autogen_designer_wizard\/trucks\/([^/]+)\/\1\.cls$/i
+// `base` is a separate SDK folder: these entities are selected by AI route pools.
+const BASE_VEHICLE_PATTERN = /^ssl\/autogen_designer_wizard\/trucks\/(?:base\/)?([^/]+)\/\1\.cls$/i
 const TRUCK_LIBRARY_PATTERN = /^ssl\/autogen_designer_wizard\/trucks\/auto_truck_library\.sso$/i
 const COMPATIBLE_IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.webp'])
 const PACKAGED_IMAGE_ALIASES: Record<string, string> = {
@@ -114,7 +121,13 @@ export function parseTruckLibrary(source: string) {
     const name = match[1].toLowerCase()
     const block = source.slice(open + 1, close)
     const uiIcon = /^ {6}uiIcon\s*=\s*"([^"]+)"/mi.exec(block)?.[1]
-    records.set(name, { name, uiIcon, isBase: name.startsWith('base_') })
+    const number = (field: string) => {
+      const value = new RegExp(`^ {6}${field}\\s*=\\s*(-?\\d+(?:\\.\\d+)?)`, 'mi').exec(block)?.[1]
+      return value === undefined ? undefined : Number(value)
+    }
+    const previous = records.get(name)
+    records.set(name, { name, uiIcon: uiIcon ?? previous?.uiIcon, isBase: name.startsWith('base_'),
+      buyCost: number('buyCost') ?? previous?.buyCost, rankToUnlock: number('rankToUnlock') ?? previous?.rankToUnlock })
     pattern.lastIndex = close + 1
   }
 
@@ -127,8 +140,10 @@ export function resolvePackagedVehicleMetadata(stem: string, library: Map<string
   const base = library.get(`base_${name}`)
   return {
     registered: Boolean(regular || base),
-    aiOnly: /(?:^|_)ai(?:_|$)/i.test(name) || Boolean(base && !regular),
-    uiIcon: regular?.uiIcon ?? base?.uiIcon
+    aiOnly: name.startsWith('base_') || /(?:^|_)ai(?:_|$)/i.test(name) || Boolean(base && !regular),
+    uiIcon: regular?.uiIcon ?? base?.uiIcon,
+    buyCost: regular?.buyCost ?? base?.buyCost,
+    rankToUnlock: regular?.rankToUnlock ?? base?.rankToUnlock
   }
 }
 
@@ -360,18 +375,40 @@ export class RoadCraftService {
 
   async getPreview(id: string): Promise<VehiclePreviewAsset | undefined> {
     const item = this.catalog.get(id)
-    if (!item || item.sourceType !== 'bro') return
+    if (!item) return
+    if (item.sourceType === 'pak') {
+      const source = await this.readItemSource(item)
+      const name = this.readStringValue(source, ['properties', 'geom'], 'nameTpl')
+      if (!name) return
+      const folder = item.archiveEntryName!.slice(0, item.archiveEntryName!.lastIndexOf('/') + 1)
+      const wheels = await readMatchingTextEntries(item.sourcePath, entry => entry.startsWith(folder) && /\/auto_wheel_[^/]+\.cls$/i.test(entry))
+      const pool = this.findNestedRange(source, ['properties', 'prop_truck_rb', 'wheelPool'])
+      const aliases = new Map([...source.slice(pool.start, pool.end).matchAll(/([a-z0-9_]+)\s*=\s*\{\s*__value\s*=\s*"([a-z0-9_]+)"/gi)].map(match => [match[1], match[2]]))
+      const slots = arrayObjects(source, 'wheelSlotWithDescs').flatMap(slot => {
+        const frame = /geomName\s*=\s*"([^"]+)"/.exec(slot)?.[1], alias = /editableWheel\s*=\s*"([^"]+)"/.exec(slot)?.[1]
+        const definition = wheels.find(wheel => basename(wheel.entryName, '.cls') === aliases.get(alias ?? ''))
+        const model = definition && this.readStringValue(definition.content, ['properties', 'geom'], 'nameTpl')
+        return frame && model ? [{ frame, model, right: /isRightSided\s*=\s*True/i.test(slot) }] : []
+      })
+      return this.compiledPreviews().get(name, undefined, slots)
+    }
     const root = join(this.settings.installPath, 'root', 'mods_source')
     const source = await readFile(item.sourcePath, 'utf8')
     const ref = this.readStringValue(source, [], 'tpl')
     if (!ref || !/^[a-z0-9_-]{1,150}$/i.test(ref)) return
     const fbx = join(root, 'models', 'mods', ref + '.tpl.asset', ref + '.fbx')
-    if (!existsSync(fbx) || (await stat(fbx)).size > 64 * 1024 * 1024) return
+    if (existsSync(fbx) && (await stat(fbx)).size > 64 * 1024 * 1024) return
     const textures: Record<string, string> = {}
     for (const path of await this.walkFiles(join(root, 'textures'), new Set(['.tga', '.png', '.jpg', '.jpeg', '.dds']))) {
       textures[basename(path).toLowerCase()] = pathToFileURL(path).href
     }
-    const wheelRef = this.readStringValue(source, ['wheelPool', 'Wheel', 'wheel'], 'tpl')
+    let wheelRef = this.readStringValue(source, ['wheelPool', 'Wheel', 'wheel'], 'tpl')
+    if (!wheelRef) {
+      const type = this.readStringValue(source, ['wheelPool', 'Wheel', 'wheel'], '__type')
+      const wheelBro = type && (await this.walkFiles(join(root, 'bro', 'wheels'), new Set(['.bro'])))
+        .find(path => basename(path, '.bro').replaceAll('_', '').toLowerCase() === type.toLowerCase())
+      if (wheelBro) wheelRef = this.readStringValue(await readFile(wheelBro, 'utf8'), [], 'tpl')
+    }
     const wheel = wheelRef && /^[a-z0-9_-]{1,150}$/i.test(wheelRef) ? join(root, 'models', 'mods', wheelRef + '.tpl.asset', wheelRef + '.fbx') : undefined
     const materials: Record<string, PreviewMaterial> = {}
     const textureUrl = (name?: string) => name ? ['.tga','.dds','.png','.jpg','.jpeg'].map(ext=>textures[name.toLowerCase()+ext]).find(Boolean) : undefined
@@ -401,7 +438,24 @@ export class RoadCraftService {
       }
     }
     const scale = this.readParameterValue(source,{id:'scale',path:['wheelPool','Wheel'],field:'scale',labelKey:'',groupKey:''})
+    if (!existsSync(fbx)) {
+      const directory = join(root, 'models', 'mods', ref + '.tpl.asset', 'tpl')
+      const wheelDirectory = wheelRef && /^[a-z0-9_-]{1,150}$/i.test(wheelRef) ? join(root, 'models', 'mods', wheelRef + '.tpl.asset', 'tpl') : undefined
+      const slots = wheelDirectory && existsSync(join(wheelDirectory, wheelRef + '.tpl')) ? arrayObjects(source, 'wheelSlots').flatMap(slot => {
+        const frame = /geomName\s*=\s*"([^"]+)"/.exec(slot)?.[1]
+        return frame ? [{ frame, model: wheelRef!, directory: wheelDirectory, scale: typeof scale === 'number' ? scale : 1, right: /isRightSided\s*=\s*True/i.test(slot) }] : []
+      }) : []
+      const compiled = existsSync(join(directory, ref + '.tpl')) ? await this.compiledPreviews().get(ref, directory, slots) : undefined
+      return compiled ? { ...compiled, textures, materials: { ...compiled.materials, ...materials } } : undefined
+    }
     return { modelUrl: pathToFileURL(fbx).href, textures, materials, modelImportScale: await importScale(ref), wheelImportScale: await importScale(wheelRef), wheelScale: typeof scale==='number' && scale>0 && scale<=10 ? scale : 1, wheelUrl: wheel && existsSync(wheel) ? pathToFileURL(wheel).href : undefined }
+  }
+
+  private previewStore?: { path: string; store: CompiledPreviewStore }
+  private compiledPreviews() {
+    if (this.previewStore?.path !== this.settings.installPath) this.previewStore = { path: this.settings.installPath,
+      store: new CompiledPreviewStore(this.settings.installPath, join(app.getPath('userData'), 'preview-cache')) }
+    return this.previewStore.store
   }
 
   async chooseInstall(): Promise<ScanResult | undefined> {
@@ -458,6 +512,8 @@ export class RoadCraftService {
     }
 
     entries.sort((a, b) => a.name.localeCompare(b.name))
+    // Rescans can follow game or mod updates. Do not retain stale asset indexes.
+    this.previewStore = undefined
 
     return {
       installPath: this.settings.installPath,
@@ -747,7 +803,8 @@ export class RoadCraftService {
     const id = `pak:${resolve(packagePath)}::${archived.entryName}`
     const lowerName = stem.toLowerCase()
     const metadata = resolvePackagedVehicleMetadata(stem, truckLibrary)
-    const moduleTag = this.readStringValue(archived.content, [], 'tag') ?? ''
+    const moduleTag = this.readStringValue(archived.content, ['properties', 'prop_tagged'], 'tag') ?? ''
+    const rusty = /(?:^|_)old(?:_|$)/i.test(stem) || /RUSTY/i.test(moduleTag)
     const isTrailer = /^UID_MODULE_SEMITRUCK_(?:TRAILER|FUEL)$/i.test(moduleTag)
       || (/wayfarer/i.test(lowerName) && /(?:semi)?trailer|cargo_main/i.test(lowerName))
     const kind: ContentKind = metadata.aiOnly
@@ -776,7 +833,7 @@ export class RoadCraftService {
         id,
         kind,
         sourceType: 'pak',
-        name: this.humanize(stem.replace(/^auto_/, '')),
+        name: this.humanize(stem.replace(/^auto_(?:base_)?/, '')),
         internalName: stem,
         category: this.humanize(moduleTag.replace(/^UID_MODULE_/, '') || truckType),
         filePath: resolve(packagePath),
@@ -789,7 +846,14 @@ export class RoadCraftService {
             ? 'custom'
             : this.isDirectShopImage(stem, imagePath) ? 'shop' : 'related'
           : undefined,
-        parameters
+        parameters,
+        access: {
+          control: metadata.aiOnly ? 'ai' : metadata.registered ? 'player' : 'unknown',
+          variant: rusty ? 'rusty' : 'standard',
+          obtain: metadata.aiOnly ? 'unknown' : rusty
+            || metadata.buyCost === -1 ? 'scenario' : metadata.buyCost !== undefined && metadata.buyCost >= 0 ? 'shop' : 'unknown',
+          buyCost: metadata.buyCost, rankToUnlock: metadata.rankToUnlock
+        }
       }
     }
   }
@@ -1250,6 +1314,7 @@ export class RoadCraftService {
   }
 
   private matchPackagedImage(stem: string, images: string[], iconReference?: string) {
+    stem = stem.replace(/^auto_base_/i, 'auto_')
     const vehicleKey = this.normalizeImageKey(stem)
     const vehicleTokens = this.imageTokens(stem)
     const preferredImage = iconReference ?? PACKAGED_IMAGE_ALIASES[stem.toLowerCase()]

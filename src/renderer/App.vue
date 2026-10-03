@@ -127,6 +127,8 @@
           <span :class="{ 'meta-edited': selectedEntry.modified }">
             {{ selectedEntry.modified ? t('edited') : selectedEntry.sourceType === 'pak' ? t('basePackage') : '.bro' }}
           </span>
+          <span v-if="selectedEntry.access">{{ t(`control_${selectedEntry.access.control}`) }}</span>
+          <span v-if="selectedEntry.access?.variant === 'rusty'">{{ t('rustyVariant') }}</span>
         </div>
         <div class="editor-workspace">
           <section class="vehicle-preview" :aria-label="t('vehicleView')">
@@ -137,7 +139,17 @@
             </div>
           </section>
           <section class="inspector-settings" :aria-label="t('vehicleSettings')">
+            <nav v-if="parameterGroups.length" class="parameter-tabs" :aria-label="t('parameterSections')">
+              <button v-for="group in parameterGroups" :key="group.key" :aria-pressed="activeParameterGroup === group.key" :class="{ active: activeParameterGroup === group.key }" @click="setParameterGroup(group.key)">
+                {{ t(group.key) }} <small>{{ group.parameters.length }}</small>
+              </button>
+            </nav>
             <div class="settings-scroll" tabindex="0">
+        <div v-if="selectedEntry.access" class="access-notice">
+          <strong>{{ t(selectedEntry.access.control === 'ai' ? 'aiRouteInfo' : `obtain_${selectedEntry.access.obtain}`) }}</strong>
+          <span v-if="selectedEntry.access.control === 'ai'">{{ t('aiRouteHelp') }}</span>
+          <span v-else>{{ t('accessConfigHelp') }}<template v-if="selectedEntry.access.buyCost !== undefined"> · {{ t('configuredPrice') }}: {{ selectedEntry.access.buyCost }}</template><template v-if="selectedEntry.access.rankToUnlock !== undefined"> · {{ t('requiredRank') }}: {{ selectedEntry.access.rankToUnlock }}</template></span>
+        </div>
         <div class="safe-notice">
           <strong>🛡 {{ t('safeRange') }}</strong>
           <span>{{ t(selectedEntry.sourceType === 'pak' ? 'pakSafeNotice' : 'safeNotice') }}</span>
@@ -147,7 +159,7 @@
           {{ t('noParams') }}
         </div>
 
-        <div v-for="group in parameterGroups" :key="group.key" class="parameter-group">
+        <div v-for="group in visibleParameterGroups" :key="group.key" class="parameter-group">
           <h3>{{ t(group.key) }}</h3>
           <article v-for="parameter in group.parameters" :key="parameter.id" class="parameter-card">
             <div class="parameter-card__title">
@@ -380,6 +392,7 @@ const saving = ref(false)
 const scanResult = ref<ScanResult>()
 const selectedId = ref<string>()
 const draftValues = reactive<Record<string, ParameterValue>>({})
+const activeParameterGroup = ref('engine')
 const toast = ref<{ type: 'success' | 'error'; message: string }>()
 const saveSlots = ref<SaveSlotSummary[]>([])
 const saveDraft = ref<SaveGameData>()
@@ -416,6 +429,7 @@ const parameterGroups = computed(() => {
   }
   return [...groups.entries()].map(([key, parameters]) => ({ key, parameters }))
 })
+const visibleParameterGroups = computed(() => parameterGroups.value.filter(group => group.key === activeParameterGroup.value))
 const filteredSaveTrucks = computed(() => {
   const query = truckSearch.value.trim().toLowerCase()
   return (saveDraft.value?.trucks ?? []).filter(truck => !query || `${truck.id} ${humanizeId(truck.id)}`.toLowerCase().includes(query))
@@ -467,8 +481,17 @@ async function chooseInstall() {
 
 function selectEntry(entry: ContentEntry) {
   selectedId.value = entry.id
+  if (!entry.parameters.some(parameter => parameter.groupKey === activeParameterGroup.value)) {
+    activeParameterGroup.value = entry.parameters[0]?.groupKey ?? 'engine'
+  }
   for (const key of Object.keys(draftValues)) delete draftValues[key]
   for (const parameter of entry.parameters) draftValues[parameter.id] = parameter.value
+}
+
+function setParameterGroup(group: string) {
+  activeParameterGroup.value = group
+  // Drafts belong to the entry, not the visible category; switching never resets them.
+  document.querySelector('.settings-scroll')?.scrollTo({ top: 0 })
 }
 
 function handleImageError(entry: ContentEntry) {
