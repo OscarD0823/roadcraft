@@ -177,7 +177,9 @@ export class CompiledPreviewStore {
       const group = new THREE.Group(); group.name = 'preview_wheel_' + slot.frame
       new THREE.Matrix4().fromArray(frame.bindTransform).decompose(group.position, group.quaternion, group.scale)
       if (!slot.right) wheel.rotateY(Math.PI)
-      group.userData.drivenWheel = true; group.userData.radius=slot.radius; group.add(wheel); model.add(group)
+      // Animate the wheel inside its fixed mounting frame, not the frame itself.
+      // Steering and non-uniform frame scale must not tilt or squash the tyre.
+      wheel.userData.drivenWheel = true; wheel.userData.radius=slot.radius; group.add(wheel); model.add(group)
       Object.assign(materials, asset.materials)
     }
     for(const [i,track] of tracks.entries()) {
@@ -207,7 +209,7 @@ export class CompiledPreviewStore {
     // Track strips are deliberately almost flat before they wrap around rollers.
     const trackSection=/(?:_track|_chain)$/.test(name)
     if (!dimensions.every(value => Number.isFinite(value) && value > (trackSection ? .00001 : .1) && value < 150) || dimensions.filter(value=>value>.1).length < (trackSection ? 2 : 3)) throw new Error('TPL dimensions outside preview limits')
-    const target = join(this.cacheRoot, createHash('sha1').update(tpl).update(data).update(JSON.stringify(wheels)).update(JSON.stringify(tracks)).update(JSON.stringify(wheelVersions)).update('geometry-v9').digest('hex') + '.json.gz')
+    const target = join(this.cacheRoot, createHash('sha1').update(tpl).update(data).update(JSON.stringify(wheels)).update(JSON.stringify(tracks)).update(JSON.stringify(wheelVersions)).update('geometry-v10').digest('hex') + '.json.gz')
     if (!existsSync(target)) await this.writeCache(target, await compress(JSON.stringify(model.toJSON())))
     model.traverse(object => { if (object instanceof THREE.Mesh) { object.geometry.dispose(); (object.material as THREE.Material).dispose() } })
     return { format: 'tpl', modelEncoding: 'gzip-json', modelUrl: pathToFileURL(target).href, modelImportScale: 1, wheelImportScale: 1, wheelScale: 1, textures: {}, materials }

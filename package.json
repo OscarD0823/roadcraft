@@ -1,7 +1,7 @@
 {
   "name": "roadcraft-studio",
   "productName": "RoadCraft Studio",
-  "version": "0.8.1",
+  "version": "0.8.2",
   "description": "Editor visual y seguro para vehículos, tráilers, unidades de IA y partidas de RoadCraft.",
   "main": ".vite/build/index.js",
   "author": {

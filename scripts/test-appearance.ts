@@ -9,6 +9,7 @@ import { CompiledPreviewStore } from '../src/main/compiled-preview'
 import { readMatchingTextEntries } from '../src/main/zip-package'
 import { objectBody } from '../src/main/source-blocks'
 import { trackOutline, orientTrackStrip } from '../src/main/track-geometry'
+import { wheelRollingAxis } from '../src/renderer/source-model'
 assert.equal(objectBody('x = { s = "a}b" y = { n = 1 } } after = {}','x'),' s = "a}b" y = { n = 1 } ')
 assert.equal(previewMobility('properties={prop_tagged={tag="UID_MODULE_TRUCK_CRANE"}}'),'road')
 assert.equal(previewMobility('isStaticTruck = True'),'stationary')
@@ -20,6 +21,15 @@ const fixture=new THREE.BufferGeometry().setAttribute('position',new THREE.Float
 const transforms=[new THREE.Matrix4().makeTranslation(0,0,-.55).elements,new THREE.Matrix4().makeTranslation(0,0,.275).elements]
 const oriented=orientTrackStrip(fixture,transforms).getAttribute('position')
 assert(Math.abs(oriented.getX(1)+1.1)<.00001 && Math.abs(oriented.getZ(1)-.3)<.00001,'Wrong longitudinal track axis')
+for(const steering of [-.6,0,.6])for(const mirrored of [false,true])for(const scale of [.4,1,1.8]) {
+  const frame=new THREE.Group(),wheel=new THREE.Group();frame.rotation.y=steering;frame.scale.set(scale,1,.7);frame.add(wheel);if(mirrored)wheel.rotateY(Math.PI)
+  frame.updateMatrixWorld(true)
+  const initial=wheel.quaternion.clone(),before=new THREE.Vector3(1,0,0).transformDirection(wheel.matrixWorld),axis=wheelRollingAxis(wheel)
+  for(const phase of [.3,1,2,3,4,5]) {
+    wheel.quaternion.copy(initial).multiply(new THREE.Quaternion().setFromAxisAngle(axis,phase));frame.updateMatrixWorld(true)
+    assert(before.dot(new THREE.Vector3(1,0,0).transformDirection(wheel.matrixWorld))>.999999,'Wheel tilts inside its mounting frame')
+  }
+}
 
 async function main() {
   const game=process.env.ROADCRAFT_GAME_PATH??'E:/SteamLibrary/steamapps/common/RoadCraft',packages=join(game,'root/paks/client/default')
@@ -50,7 +60,7 @@ async function main() {
       const asset=await store.get(name,undefined,assembly.wheels,assembly.tracks);assert(asset,cls+' failed to load')
       const model=new THREE.ObjectLoader().parse(JSON.parse(gunzipSync(await readFile(new URL(asset.modelUrl))).toString('utf8')))
       model.traverse(o=>{if(o instanceof THREE.Mesh)assert(asset.materials[(o.material as THREE.Material).name],'Missing namespaced material')})
-      let tracks=0;model.traverse(o=>{if(o.userData.track)tracks++})
+      let tracks=0;model.traverse(o=>{if(o.userData.track)tracks++;if(o.userData.drivenWheel)assert(o.parent?.name.startsWith('preview_wheel_'),'The mounting frame must stay fixed')})
       const bounds=new THREE.Box3().setFromObject(model),size=bounds.getSize(new THREE.Vector3())
       if(cls.includes('bowhead')){assert.equal(tracks,2);assert(size.x<4.5 && size.y<4 && size.z<10);assert(Object.values(asset.materials).some(m=>m.paintable&&m.tintMask))}
       if(cls.includes('greenway')){assert.equal(tracks,2,'Five-bone tracks missing');assert(size.y<5,'Cabin indicators are outside the vehicle')}

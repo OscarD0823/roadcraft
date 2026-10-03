@@ -11,6 +11,14 @@ export function exteriorMesh(name: string) {
   return !/(?:^|_)cdt(?:$|_)|collision|_lod[1-9]|(?:^|_)hp_|cutoff|physical|^_load_(?:volume|border)|^_sfx_/i.test(name)
 }
 
+/** Spin about the model's axle, retaining its steering/mounting direction.
+ * Mirrored left wheels need the opposite local sign to travel forward too. */
+export function wheelRollingAxis(object:THREE.Object3D) {
+  const axis=new THREE.Vector3(1,0,0)
+  const world=axis.clone().applyQuaternion(object.getWorldQuaternion(new THREE.Quaternion()))
+  return axis.multiplyScalar(world.x<0?-1:1)
+}
+
 /** Cancel the loader's root-axis conversion when nesting a wheel in a source bone. */
 export function mountSourceWheel(body: THREE.Object3D, wheel: THREE.Object3D, slot: THREE.Object3D, wheelScale = 1) {
   const unit = wheel.clone(true)

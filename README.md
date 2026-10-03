@@ -1,6 +1,11 @@
 # RoadCraft Studio
 
-## Versión 0.8.1
+## Versión 0.8.2
+
+- Las ruedas giran dentro de su soporte fijo, conservando la dirección y la escala del eje. Evita neumáticos inclinados o aplastados durante la animación, detectados al revisar las variantes del Zikz 612C.
+- Incluye las correcciones de ensamblado de 0.8.1 indicadas a continuación.
+
+### Correcciones de 0.8.1
 
 - Corrige el movimiento lateral y respeta las cinco grúas fijas/ferroviarias de la instalación verificada.
 - Ensambla ruedas con sus escalas originales y completa rodillos y eslabones de oruga en reposo.

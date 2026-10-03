@@ -126,6 +126,7 @@ try {
       'auto_aramatsu_bowhead_heavy_dumptruck_new','auto_don_71','auto_dragline_5111b_building_demolisher_old',
       'auto_n_and_s_700s_tower_crane','auto_n_and_s_loader20g_crane_grabber','auto_n_and_s_260gantry_crane_railroad',
       'auto_wayfarer_st7050_cargo_main','auto_wayfarer_st7050_trailer_cargo_ai','auto_base_alces_c400_cargo_res'
+      ,'auto_greenway_ht500_dozer_new','auto_zikz_612c_heavy_crane_res','auto_base_zikz_612c_heavy_crane_res'
     ].includes(e.internalName))
     await evaluate(`document.querySelectorAll('.nav-button')[0].click()`)
     for(const entry of selected){
@@ -135,6 +136,11 @@ try {
       assert.equal(!!preview.image,false,'A cover must never replace the 3D view automatically')
       if(entry.kind!=='other') assert.equal(preview.state,'ready','Missing 3D model '+entry.internalName)
       if(preview.state==='ready') await wait(`!!document.querySelector('.drive-scene')?.dataset.frame`)
+      if(preview.state==='ready' && entry.kind!=='other') {
+        await new Promise(r=>setTimeout(r,600))
+        const drift=await evaluate(`Number(document.querySelector('.drive-scene')?.dataset.wheelAxisDrift??0)`)
+        assert(drift<.000001,'Wheel axle changes during rotation: '+entry.internalName)
+      }
       if(process.env.ROADCRAFT_ALL_ENTRIES==='1' && preview.state==='ready') {
         const clip=await evaluate(`(()=>{const b=document.querySelector('.drive-scene').getBoundingClientRect();return {x:b.x,y:b.y,width:b.width,height:b.height,scale:1}})()`)
         await mkdir(join(output,'models'),{recursive:true})
@@ -162,6 +168,9 @@ try {
         shot=await call('Page.captureScreenshot',{format:'png'});await writeFile(join(output,entry.internalName+'.png'),Buffer.from(shot.data,'base64'))
       }
       if(entry.internalName==='auto_greenway_ht500_dozer_new') assert(JSON.parse(preview.dataset.bounds)[1]<5,'Greenway cabin parts displaced')
+      if(entry.internalName.includes('zikz_612c')) {
+        shot=await call('Page.captureScreenshot',{format:'png'});await writeFile(join(output,entry.internalName+'.png'),Buffer.from(shot.data,'base64'))
+      }
       previews.push({id:entry.id,...preview})
       await writeFile(join(output,'preview-progress.json'),JSON.stringify(previews,null,2))
       console.log('Preview verified: '+entry.internalName+' '+preview.state)
