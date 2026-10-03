@@ -4,6 +4,12 @@ export type RecommendationLevel = 'low' | 'medium' | 'high'
 export type ParameterValue = number | string | boolean
 export type ParameterKind = 'number' | 'boolean' | 'select'
 
+export interface LogisticsUse {
+  map: string
+  role: 'delivery' | 'validation'
+  cargoNames: string[]
+}
+
 export interface RecommendedValues {
   low: number
   medium: number
@@ -39,7 +45,9 @@ export interface ContentEntry {
   imageKind?: 'custom' | 'shop' | 'related' | 'mod'
   mobility?: 'road' | 'rail' | 'stationary'
   access?: {
-    control: 'player' | 'ai' | 'unknown'
+    control: 'player' | 'ai' | 'shared' | 'unknown'
+    baseVariant?: boolean
+    logistics?: LogisticsUse[]
     variant: 'rusty' | 'standard'
     obtain: 'shop' | 'scenario' | 'unknown'
     buyCost?: number
@@ -54,6 +62,11 @@ export interface ScanResult {
   entries: ContentEntry[]
   packageCount: number
   scannedAt: number
+  logisticsScanIncomplete?: boolean
+}
+
+export function entryInSection(entry: ContentEntry, kind: ContentKind) {
+  return kind === 'ai' ? Boolean(entry.access?.logistics?.length) : entry.kind === kind
 }
 
 export interface SavePayload {

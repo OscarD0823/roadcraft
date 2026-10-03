@@ -75,6 +75,9 @@
           <span v-if="scanResult" class="scan-time">{{ t('lastScan') }}: {{ formatTime(scanResult.scannedAt) }}</span>
         </div>
 
+        <p v-if="view === 'ai'" class="library-note">{{ t('logisticsSectionHelp') }}</p>
+        <p v-if="scanResult?.logisticsScanIncomplete" class="library-note library-note--warning">{{ t('logisticsScanIncomplete') }}</p>
+
         <div v-if="loading && !scanResult" class="center-state">
           <div class="loader" />
           <p>{{ t('scanning') }}</p>
@@ -101,7 +104,7 @@
                 <small>{{ entry.sourceType === 'pak' ? '.CLS · PAK' : '.BRO' }}</small>
               </div>
               <span v-if="entry.modified" class="edited-badge">✎ {{ t('edited') }}</span>
-              <span class="kind-badge">{{ t(kindLabel(entry.kind)) }}</span>
+              <span class="kind-badge">{{ entry.access?.control === 'shared' ? t('sharedRouteBadge') : t(kindLabel(entry.kind)) }}</span>
             </div>
             <div class="content-card__body">
               <strong>{{ entry.name }}</strong>
@@ -146,9 +149,19 @@
             </nav>
             <div class="settings-scroll" tabindex="0">
         <div v-if="selectedEntry.access" class="access-notice">
-          <strong>{{ t(selectedEntry.access.control === 'ai' ? 'aiRouteInfo' : `obtain_${selectedEntry.access.obtain}`) }}</strong>
-          <span v-if="selectedEntry.access.control === 'ai'">{{ t('aiRouteHelp') }}</span>
+          <strong>{{ t(selectedEntry.access.logistics?.length ? 'aiRouteInfo' : selectedEntry.access.baseVariant ? 'unconfirmedBaseInfo' : `obtain_${selectedEntry.access.obtain}`) }}</strong>
+          <span v-if="selectedEntry.access.logistics?.length">{{ t(selectedEntry.access.control === 'shared' ? 'sharedRouteHelp' : 'aiRouteHelp') }}</span>
+          <span v-else-if="selectedEntry.access.baseVariant">{{ t('unconfirmedBaseHelp') }}</span>
           <span v-else>{{ t('accessConfigHelp') }}<template v-if="selectedEntry.access.buyCost !== undefined"> · {{ t('configuredPrice') }}: {{ selectedEntry.access.buyCost }}</template><template v-if="selectedEntry.access.rankToUnlock !== undefined"> · {{ t('requiredRank') }}: {{ selectedEntry.access.rankToUnlock }}</template></span>
+          <details v-if="selectedEntry.access.logistics?.length" class="logistics-evidence">
+            <summary>{{ t('logisticsEvidence') }} ({{ selectedEntry.access.logistics.length }})</summary>
+            <ul>
+              <li v-for="use in selectedEntry.access.logistics" :key="`${use.map}:${use.role}`">
+                <strong>{{ humanizeId(use.map) }}</strong> · {{ t(`logistics_${use.role}`) }}
+                <small v-if="use.cargoNames.length">{{ t('logisticsCargo') }}: {{ use.cargoNames.map(humanizeId).join(', ') }}</small>
+              </li>
+            </ul>
+          </details>
         </div>
         <div class="safe-notice">
           <strong>🛡 {{ t('safeRange') }}</strong>
@@ -375,6 +388,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import type { ContentEntry, ContentKind, EditableParameter, ParameterValue, SaveGameData, SaveSlotSummary, ScanResult } from '../shared'
+import { entryInSection } from '../shared'
 import { locales, translate } from './i18n'
 import StartupJourney from './components/startup-journey.vue'
 import VehicleDrive from './components/vehicle-drive.vue'
@@ -415,7 +429,7 @@ const filteredEntries = computed(() => {
   const query = search.value.trim().toLowerCase()
   return (scanResult.value?.entries ?? []).filter(entry => {
     const matchesView = view.value === 'all'
-      || (view.value === 'modified' ? entry.modified : entry.kind === view.value)
+      || (view.value === 'modified' ? entry.modified : view.value !== 'save' && entryInSection(entry, view.value))
     const matchesSearch = !query || `${entry.name} ${entry.internalName} ${entry.relativePath}`.toLowerCase().includes(query)
     return matchesView && matchesSearch
   })
@@ -452,7 +466,7 @@ function t(key: string) {
 }
 
 function countByKind(kind: ContentKind) {
-  return scanResult.value?.entries.filter(entry => entry.kind === kind).length ?? 0
+  return scanResult.value?.entries.filter(entry => entryInSection(entry, kind)).length ?? 0
 }
 
 async function scan() {

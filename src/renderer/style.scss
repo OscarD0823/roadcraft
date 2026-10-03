@@ -208,6 +208,14 @@ button { cursor: pointer; }
   small { padding: 1px 5px; border-radius: 5px; background: #52617414; }
 }
 .access-notice { display: grid; gap: 5px; padding: 10px 12px; margin-bottom: 10px; border-radius: 10px; background: #edf4f7; color: #465e70; font-size: 11px; line-height: 1.5; }
+.logistics-evidence {
+  summary { cursor: pointer; font-weight: 600; }
+  ul { display: grid; gap: 8px; padding-inline-start: 18px; }
+  li, small { overflow-wrap: anywhere; }
+  small { display: block; }
+}
+.library-note { flex: 0 0 auto; margin: 0; padding: 9px 20px; background: #edf4f7; color: #465e70; font-size: 12px; line-height: 1.5; }
+.library-note--warning { background: #fff2dd; color: #854c09; }
 
 .path-chip {
   display: flex;

@@ -1,6 +1,14 @@
 # RoadCraft Studio
 
-## Versión 0.8.2
+## Versión 0.8.3
+
+- «Logística» contiene solo las configuraciones referenciadas por los convoyes de entregas/pruebas de rutas entre empresas, no todos los vehículos que puede usar la IA.
+- Lee `RegularPool` y `TestPool` de las escenas compiladas instaladas y de fuentes de mapas/mods `.scn`. Una nueva búsqueda vuelve a comprobarlos.
+- La instalación comprobada tiene 22 configuraciones logísticas: 19 exclusivas y tres compartidas con el jugador. Las compartidas aparecen en ambas secciones con advertencia; no se duplican ni sus archivos ni sus cambios.
+- Las variantes `base_` sin rutas confirmadas quedan en Otros. El prefijo o el nombre `_ai` por sí solos ya no deciden la clasificación.
+- El editor muestra los mapas, si el uso es entrega habitual o prueba de ruta, y la carga configurada. Advierte cuando no puede analizar una escena.
+
+### Correcciones de 0.8.2
 
 - Las ruedas giran dentro de su soporte fijo, conservando la dirección y la escala del eje. Evita neumáticos inclinados o aplastados durante la animación, detectados al revisar las variantes del Zikz 612C.
 - Incluye las correcciones de ensamblado de 0.8.1 indicadas a continuación.
@@ -15,8 +23,8 @@
 
 ### Catálogo y mejoras de 0.8.0
 
-- Catálogo completo de la instalación probada: 116 configuraciones de vehículo, 6 tráilers, 74 variantes de IA y un recurso adicional.
-- Detecta las clases `trucks/base/` usadas en rutas de IA; no confunde las versiones recuperadas `old` con estas copias.
+- Catálogo completo de la instalación probada. La clasificación amplia de 74 variantes de IA de esta versión se sustituyó en 0.8.3 por referencias reales de convoyes logísticos.
+- Detecta las clases `trucks/base/`; no confunde las versiones recuperadas `old` con estas copias.
 - Precio, rango, tipo de control y variante oxidada visibles. La disponibilidad real depende de mapa, objetivos, DLC y partida.
 - Ajustes agrupados en pestañas por categoría para vehículos, tráilers e IA, sin perder cambios pendientes al cambiar de grupo.
 - Nuevo lector propio de TPL/TPL_DATA: geometría original del catálogo, texturas locales y ruedas separadas, además de FBX fuente.

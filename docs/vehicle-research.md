@@ -4,9 +4,15 @@ Investigación contrastada con el SDK oficial y la instalación local, 3 de octu
 
 ## Clasificación
 
-`auto_truck_library.sso` registra configuraciones de jugador y variantes `base_`. Las clases de estas últimas están dentro de `ssl/autogen_designer_wizard/trucks/base/`; no deben omitirse por buscar únicamente la carpeta superior. En la instalación probada hay 194 clases: 73 copias `auto_base_`, una variante explícita `_ai`, y 120 configuraciones restantes. Las fuentes oficiales de mods añaden tres entradas.
+`auto_truck_library.sso` registra configuraciones de jugador y variantes `base_`. Las clases de estas últimas están dentro de `ssl/autogen_designer_wizard/trucks/base/`; no deben omitirse por buscar únicamente la carpeta superior. En la instalación probada hay 194 clases: 73 copias `auto_base_`, una variante explícita `_ai`, y 120 configuraciones restantes. Las fuentes oficiales de mods añaden tres entradas. **Ni `base_` ni `_ai` prueban por sí solos el uso logístico.**
 
-El SDK exige nombres `base_` para `RegularPool.TruckName` de las rutas Establish y para `TestPool.TruckName` de ValidRouteWithTestConvoy. El escenario define la ruta, carga, frecuencia y validación; tener una clase base no implica que se use en todas las misiones. No se clasifica como IA por ausencia de fotografía, precio negativo o aspecto oxidado.
+La documentación del SDK indica nombres `base_` para `RegularPool.TruckName` de las rutas Establish y para `TestPool.TruckName` de ValidRouteWithTestConvoy. Sin embargo, la inspección de las propiedades reales de los 12 mapas instalados encontró también tres referencias sin ese prefijo: `azov_4317dl_cargo_old`, `azov_4317dl_cargo_res` y `wayfarer_st7050_trailer_fridge_new`. Por tanto, el editor usa las referencias reales, no fuerza el prefijo de la documentación.
+
+Desde 0.8.3, Logística solo incluye entradas encontradas en esos dos pools: son 22 configuraciones, 19 `base_` y tres compartidas con el jugador. Las compartidas aparecen en ambas secciones y se advierte que se edita el mismo archivo. Las otras 54 copias base y la variante `_ai` no referenciada permanecen en Otros. Esto no demuestra que sean inutilizables ni permite afirmar su función auxiliar concreta; solo que no tienen una ruta logística confirmada en las escenas examinadas.
+
+Las listas `.cd_list` y `.class_list` de los paquetes en `root/paks/client/default/scenes` contienen registros de propiedades legibles de las escenas compiladas. El lector acota tamaños, recorre únicamente estas listas y las escenas `.scn`, y no ejecuta código del juego. También revisa las fuentes `.scn` de `root/mods_source/xscenes`. No inspecciona mods externos fuera de esas ubicaciones ni deduce funciones de los nombres de modelos. Si un paquete no se puede leer, avisa y conserva las variantes sin confirmar fuera de Logística. Una nueva búsqueda vuelve a leer los pools, sin usar roles guardados de una versión anterior.
+
+Se separan las entregas habituales (`regularPool`) y las pruebas de ruta (`testPool`). Se excluyen recompensas `SpawnTruck`, ayudantes de construcción y el tráfico ambiental `prop_ai_route_presentation` si no aparecen también en uno de esos pools. El escenario define la ruta, carga, frecuencia y validación; no se clasifica por ausencia de fotografía, precio negativo o aspecto oxidado. No se modifican el comportamiento de la IA, colisiones ni condiciones de atasco al clasificar.
 
 - [Rutas y entregas: Infrastructure Request](https://roadcraft-modding.prismray.io/scene_components/objective_system/infrastructure_request/)
 - [Convoy de validación](https://roadcraft-modding.prismray.io/scene_components/objective_system/verification/)
@@ -41,4 +47,4 @@ Los splits compilados rígidos pueden tener un stream separado de índices de hu
 
 ## Interfaz
 
-Los parámetros de vehículos, tráilers e IA se agrupan en pestañas independientes. Cambiar de pestaña no guarda ni descarta los cambios pendientes. El visor permanece junto al panel de ajustes. La animación original del logo representa explorador → volquete descargando arena → dozer → asfaltadora → rodillo → camión de carga; el explorador espera y se retira al final. Se respeta la preferencia de movimiento reducido.
+Los parámetros de vehículos, tráilers y convoyes logísticos se agrupan en pestañas independientes. Cambiar de pestaña de parámetros no guarda ni descarta los cambios pendientes. El visor permanece junto al panel de ajustes. La animación original del logo representa explorador → volquete descargando arena → dozer → asfaltadora → rodillo → camión de carga; el explorador espera y se retira al final. Se respeta la preferencia de movimiento reducido.

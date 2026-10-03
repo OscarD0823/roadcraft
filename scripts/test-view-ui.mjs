@@ -69,6 +69,7 @@ try {
   await evaluate(`document.querySelectorAll('.workspace-journey .machine,.workspace-journey .road-progress').forEach(node=>node.getAnimations().forEach(a=>a.play()))`)
   const scan=await evaluate('window.roadcraft.scan()')
   const all=scan.entries, images=[]
+  assert.equal(all.find(e=>e.sourceType==='bro' && e.kind==='other')?.access?.control,'unknown','A source resource is not a player vehicle')
   // Read every cover independently of lazy loading. No game or save writes.
   for(const entry of all){
     if(!entry.imageUrl){images.push({id:entry.id,name:entry.name,kind:entry.kind,image:false});continue}
@@ -195,10 +196,21 @@ try {
   for(const [index,kind] of [[1,'truck'],[2,'trailer'],[3,'ai']]){
     await evaluate(`document.querySelectorAll('.nav-button')[${index}].click()`)
     const cards=await evaluate(`document.querySelectorAll('.content-card').length`)
-    const expected=all.filter(e=>e.kind===kind).length
+    const expected=all.filter(e=>kind==='ai' ? e.access?.logistics?.length : e.kind===kind).length
     assert.equal(cards,expected, 'Wrong '+kind+' section');classification[kind]=cards
     assert.equal(await evaluate(`!!document.querySelector('.vehicle-drive')`),false)
   }
+  assert.equal(classification.ai,22,'Only confirmed delivery/test configurations belong in Logistics')
+  await evaluate(`document.querySelectorAll('.nav-button')[3].click()`)
+  assert.match(await evaluate(`document.querySelector('.library-note').textContent`),/A → B/)
+  const shared=all.find(e=>e.access?.control==='shared')
+  assert(shared,'Missing shared player/logistics configuration')
+  await evaluate(`(()=>{const cards=[...document.querySelectorAll('.content-card')];cards.find(card=>card.textContent.includes(${JSON.stringify(shared.relativePath)})).click()})()`)
+  await wait(`document.querySelector('.vehicle-drive')?.dataset.modelState === 'ready'`)
+  assert.match(await evaluate(`document.querySelector('.access-notice').textContent`),/los cambios afectan a los dos usos/)
+  await evaluate(`document.querySelector('.logistics-evidence').open=true`)
+  assert.ok(await evaluate(`document.querySelectorAll('.logistics-evidence li').length > 0`))
+  shot=await call('Page.captureScreenshot',{format:'png'});await writeFile(join(output,'logistics-shared.png'),Buffer.from(shot.data,'base64'))
   const languages=[]
   await evaluate(`document.querySelectorAll('.nav-button')[1].click();document.querySelector('.content-card').click()`)
   await call('Emulation.setDeviceMetricsOverride',{width:600,height:520,deviceScaleFactor:1,mobile:false})

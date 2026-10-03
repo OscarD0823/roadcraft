@@ -13,6 +13,7 @@ import { decodeRoadCraftShopTexture, decodeRoadCraftTexture } from './shop-textu
 import { CompiledPreviewStore } from './compiled-preview'
 import { arrayObjects } from './source-blocks'
 import { previewAssembly, previewMobility } from './preview-assembly'
+import { readLogisticsCatalog, type LogisticsCatalog } from './logistics-catalog'
 
 interface PackageBackupState {
   backupPath: string
@@ -66,7 +67,7 @@ export interface TruckLibraryRecord {
 
 interface PackagedVehicleMetadata {
   registered: boolean
-  aiOnly: boolean
+  baseVariant: boolean
   uiIcon?: string
   buyCost?: number
   rankToUnlock?: number
@@ -78,7 +79,7 @@ interface TextureDescriptor {
 }
 
 const DEFAULT_INSTALL_PATH = 'E:\\SteamLibrary\\steamapps\\common\\RoadCraft'
-// `base` is a separate SDK folder: these entities are selected by AI route pools.
+// Include base configurations, but do not assume every base class is a convoy.
 const BASE_VEHICLE_PATTERN = /^ssl\/autogen_designer_wizard\/trucks\/(?:base\/)?([^/]+)\/\1\.cls$/i
 const TRUCK_LIBRARY_PATTERN = /^ssl\/autogen_designer_wizard\/trucks\/auto_truck_library\.sso$/i
 const COMPATIBLE_IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.webp'])
@@ -141,7 +142,7 @@ export function resolvePackagedVehicleMetadata(stem: string, library: Map<string
   const base = library.get(`base_${name}`)
   return {
     registered: Boolean(regular || base),
-    aiOnly: name.startsWith('base_') || /(?:^|_)ai(?:_|$)/i.test(name) || Boolean(base && !regular),
+    baseVariant: name.startsWith('base_') || Boolean(base && !regular),
     uiIcon: regular?.uiIcon ?? base?.uiIcon,
     buyCost: regular?.buyCost ?? base?.buyCost,
     rankToUnlock: regular?.rankToUnlock ?? base?.rankToUnlock
@@ -490,19 +491,20 @@ export class RoadCraftService {
       : []
     const packagedVehicles = packagedSources.filter(item => BASE_VEHICLE_PATTERN.test(item.entryName))
     const truckLibrary = parseTruckLibrary(packagedSources.find(item => TRUCK_LIBRARY_PATTERN.test(item.entryName))?.content ?? '')
+    const logistics = await readLogisticsCatalog(this.settings.installPath)
     const packagedImages = await this.findPackagedVehicleImages(packagedVehicles, truckLibrary)
     const entries: ContentEntry[] = []
 
     this.catalog.clear()
 
     for (const filePath of broFiles) {
-      const parsed = await this.parseBroEntry(filePath, broRoot, compatibleImages)
+      const parsed = await this.parseBroEntry(filePath, broRoot, compatibleImages, logistics.vehicles)
       entries.push(parsed.entry)
       this.catalog.set(parsed.entry.id, parsed)
     }
 
     for (const archivedVehicle of packagedVehicles) {
-      const parsed = this.parsePackagedVehicle(archivedVehicle, basePackage, packagedImages, truckLibrary)
+      const parsed = this.parsePackagedVehicle(archivedVehicle, basePackage, packagedImages, truckLibrary, logistics.vehicles)
       entries.push(parsed.entry)
       this.catalog.set(parsed.entry.id, parsed)
     }
@@ -516,7 +518,8 @@ export class RoadCraftService {
       sourceRoots: [broRoot, basePackage],
       entries,
       packageCount: modDefinitions.length,
-      scannedAt: Date.now()
+      scannedAt: Date.now(),
+      logisticsScanIncomplete: logistics.incomplete
     }
   }
 
@@ -734,7 +737,7 @@ export class RoadCraftService {
     }
   }
 
-  private async parseBroEntry(filePath: string, broRoot: string, images: string[]): Promise<CatalogItem> {
+  private async parseBroEntry(filePath: string, broRoot: string, images: string[], logistics: LogisticsCatalog = new Map()): Promise<CatalogItem> {
     const source = await readFile(filePath, 'utf8')
     const id = resolve(filePath)
     const folder = basename(dirname(filePath)).toLowerCase()
@@ -742,8 +745,11 @@ export class RoadCraftService {
       ?? this.readStringValue(source, [], 'tpl')
       ?? basename(filePath, extname(filePath))
     const rawCategory = this.readStringValue(source, ['uiInfo'], 'uiType') ?? folder
-    const kind: ContentKind = /(?:^|_)ai(?:_|$)/i.test(internalName) || folder === 'ai'
-      ? 'ai'
+    const uses = logistics.get(internalName.toLowerCase().replace(/^auto_/, ''))
+    const baseVariant = /^(?:auto_)?base_/i.test(internalName)
+    const nonPlayer = baseVariant || /(?:^|_)ai(?:_|$)/i.test(internalName) || folder === 'ai'
+    const kind: ContentKind = nonPlayer
+      ? uses?.length ? 'ai' : 'other'
       : /trailer|semitruck/i.test(`${folder} ${rawCategory}`)
         ? 'trailer'
         : folder === 'trucks'
@@ -784,6 +790,13 @@ export class RoadCraftService {
         imageKind: imagePath
           ? customImage === imagePath ? 'custom' : 'mod'
           : undefined,
+        access: {
+          control: nonPlayer ? uses?.length ? 'ai' : 'unknown' : kind === 'other' ? 'unknown' : uses?.length ? 'shared' : 'player',
+          baseVariant,
+          logistics: uses,
+          variant: /(?:^|_)old(?:_|$)/i.test(internalName) ? 'rusty' : 'standard',
+          obtain: 'unknown'
+        },
         parameters
       }
     }
@@ -793,18 +806,21 @@ export class RoadCraftService {
     archived: TextArchiveEntry,
     packagePath: string,
     packagedImages: string[],
-    truckLibrary = new Map<string, TruckLibraryRecord>()
+    truckLibrary = new Map<string, TruckLibraryRecord>(),
+    logistics: LogisticsCatalog = new Map()
   ): CatalogItem {
     const stem = basename(archived.entryName, '.cls')
     const id = `pak:${resolve(packagePath)}::${archived.entryName}`
     const lowerName = stem.toLowerCase()
     const metadata = resolvePackagedVehicleMetadata(stem, truckLibrary)
+    const uses = logistics.get(lowerName.replace(/^auto_/, ''))
+    const nonPlayer = metadata.baseVariant || /(?:^|_)ai(?:_|$)/i.test(lowerName)
     const moduleTag = this.readStringValue(archived.content, ['properties', 'prop_tagged'], 'tag') ?? ''
     const rusty = /(?:^|_)old(?:_|$)/i.test(stem) || /RUSTY/i.test(moduleTag)
     const isTrailer = /^UID_MODULE_SEMITRUCK_(?:TRAILER|FUEL)$/i.test(moduleTag)
       || (/wayfarer/i.test(lowerName) && /(?:semi)?trailer|cargo_main/i.test(lowerName))
-    const kind: ContentKind = metadata.aiOnly
-      ? 'ai'
+    const kind: ContentKind = nonPlayer
+      ? uses?.length ? 'ai' : 'other'
       : isTrailer
         ? 'trailer'
         : metadata.registered || truckLibrary.size === 0
@@ -845,9 +861,11 @@ export class RoadCraftService {
         parameters,
         mobility: previewMobility(archived.content),
         access: {
-          control: metadata.aiOnly ? 'ai' : metadata.registered ? 'player' : 'unknown',
+          control: nonPlayer ? uses?.length ? 'ai' : 'unknown' : metadata.registered ? uses?.length ? 'shared' : 'player' : 'unknown',
+          baseVariant: metadata.baseVariant,
+          logistics: uses,
           variant: rusty ? 'rusty' : 'standard',
-          obtain: metadata.aiOnly ? 'unknown' : rusty
+          obtain: nonPlayer ? 'unknown' : rusty
             || metadata.buyCost === -1 ? 'scenario' : metadata.buyCost !== undefined && metadata.buyCost >= 0 ? 'shop' : 'unknown',
           buyCost: metadata.buyCost, rankToUnlock: metadata.rankToUnlock
         }

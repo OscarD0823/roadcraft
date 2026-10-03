@@ -5,11 +5,14 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { parseTruckLibrary, resolvePackagedVehicleMetadata, RoadCraftService, PAK_TRUCK_PARAMETERS, type ParameterSpec, type TruckLibraryRecord } from '../src/main/roadcraft.ts'
 import { readMatchingTextEntries, type TextArchiveEntry } from '../src/main/zip-package.ts'
+import { readLogisticsCatalog, type LogisticsCatalog } from '../src/main/logistics-catalog.ts'
+import { entryInSection, type ContentEntry } from '../src/shared.ts'
 
 interface TestableService {
   init(): Promise<void>
   scan(): Promise<{
-    entries: Array<{ id: string; internalName: string; kind: string; sourceType: string; imageUrl?: string }>
+    entries: ContentEntry[]
+    logisticsScanIncomplete: boolean
   }>
   createParameters(source: string, specs: ParameterSpec[], itemId: string): {
     parameters: Array<{ id: string; value: unknown; minimum?: number; maximum?: number }>
@@ -17,7 +20,7 @@ interface TestableService {
   }
   replaceParameterValue(source: string, spec: ParameterSpec, value: number): string
   replaceLinkedParameterValues(source: string, spec: ParameterSpec, value: number): string
-  parsePackagedVehicle(archived: TextArchiveEntry, packagePath: string, packagedImages: string[], truckLibrary: Map<string, TruckLibraryRecord>): {
+  parsePackagedVehicle(archived: TextArchiveEntry, packagePath: string, packagedImages: string[], truckLibrary: Map<string, TruckLibraryRecord>, logistics?: LogisticsCatalog): {
     entry: { kind: string; access?: { control: string; variant: string; obtain: string } }
   }
 }
@@ -49,6 +52,9 @@ async function main() {
   assert(libraryEntry, 'No se encontró auto_truck_library.sso')
   const truckLibrary = parseTruckLibrary(libraryEntry.content)
   assert(truckLibrary.size >= 190, `La biblioteca actual solo contiene ${truckLibrary.size} registros`)
+  const logistics = await readLogisticsCatalog('E:\\SteamLibrary\\steamapps\\common\\RoadCraft')
+  assert.equal(logistics.incomplete, false)
+  assert.equal(logistics.vehicles.size, 22)
 
   const zikzSource = await loadVehicle('auto_zikz_605e_mobile_scalper_res')
   const zikz = service.createParameters(zikzSource, PAK_TRUCK_PARAMETERS, 'test:zikz')
@@ -81,7 +87,7 @@ async function main() {
 
   for (const [id, expectedKind] of [
     ['auto_wayfarer_st7050_cargo_main', 'trailer'],
-    ['auto_wayfarer_st7050_trailer_cargo_ai', 'ai'],
+    ['auto_wayfarer_st7050_trailer_cargo_ai', 'other'],
     ['auto_don_72malamute_scout_trailer_new', 'truck'],
     ['auto_tuz_119lynx_scout_trailer_res', 'truck']
   ] as const) {
@@ -89,14 +95,9 @@ async function main() {
     assert.equal(parsed.entry.kind, expectedKind, `${id} debe clasificarse como ${expectedKind}`)
   }
 
-  const aiOnly = [
-    'auto_wayfarer_st7050_trailer_cargo_ai'
-  ]
-  for (const id of aiOnly) {
-    assert.equal(resolvePackagedVehicleMetadata(id, truckLibrary).aiOnly, true, `${id} debe quedar en Uso de IA`)
-  }
-  assert.equal(resolvePackagedVehicleMetadata('auto_5111b_dragline_building_demolisher', truckLibrary).aiOnly, false)
-  assert.equal(resolvePackagedVehicleMetadata('auto_dragline_5111b_building_demolisher_old', truckLibrary).aiOnly, false)
+  assert.equal(resolvePackagedVehicleMetadata('auto_base_azov_4317dl_cargo_res', truckLibrary).baseVariant, true)
+  assert.equal(resolvePackagedVehicleMetadata('auto_5111b_dragline_building_demolisher', truckLibrary).baseVariant, false)
+  assert.equal(resolvePackagedVehicleMetadata('auto_dragline_5111b_building_demolisher_old', truckLibrary).baseVariant, false)
   const rusty = service.parsePackagedVehicle(await loadVehicleEntry('auto_dragline_5111b_building_demolisher_old'), packagePath, [], truckLibrary).entry
   assert.equal(rusty.kind, 'truck', 'Un camión recuperado no debe convertirse en unidad IA')
   assert.equal(rusty.access?.variant, 'rusty')
@@ -106,7 +107,7 @@ async function main() {
   const firstScan = await service.scan()
   const scan = await service.scan()
   const packaged = scan.entries.filter(entry => entry.sourceType === 'pak')
-  const aiEntries = packaged.filter(entry => entry.kind === 'ai')
+  const aiEntries = packaged.filter(entry => entryInSection(entry, 'ai'))
   const missingImages = packaged.filter(entry => !entry.imageUrl)
   const firstMissingImages = firstScan.entries.filter(entry => entry.sourceType === 'pak' && !entry.imageUrl)
   const expectedWithoutOfficialImage = [
@@ -121,12 +122,28 @@ async function main() {
   assert.equal(packaged.length, 194, `Se esperaban 194 clases del PAK y llegaron ${packaged.length}`)
   const baseCopies = packaged.filter(entry => entry.internalName.startsWith('auto_base_'))
   assert.equal(baseCopies.length, 73)
-  assert.deepEqual(aiEntries.map(entry => entry.internalName).sort(), [...aiOnly, ...baseCopies.map(entry => entry.internalName)].sort())
+  assert.equal(scan.logisticsScanIncomplete, false)
+  assert.deepEqual(aiEntries.map(entry => entry.internalName).sort(), [...logistics.vehicles.keys()].map(name => `auto_${name}`).sort())
+  assert.equal(packaged.filter(entry => entry.kind === 'ai').length,19)
+  assert.equal(packaged.filter(entry => entry.access?.control === 'shared').length,3)
+  const shared = packaged.find(entry => entry.internalName === 'auto_azov_4317dl_cargo_old')!
+  assert.equal(shared.kind,'truck')
+  assert.equal(shared.access?.control,'shared')
+  assert.equal(entryInSection(shared,'truck'),true)
+  assert.equal(entryInSection(shared,'ai'),true)
+  const helper = packaged.find(entry => entry.internalName === 'auto_base_aramatsu_bowhead_heavy_dumptruck_new')!
+  assert(helper)
+  assert.equal(helper.kind,'other')
+  assert.equal(entryInSection(helper,'ai'),false,'Una variante base auxiliar no es un convoy de entrega')
+  const player = packaged.find(entry => entry.internalName === 'auto_aramatsu_bowhead_heavy_dumptruck_new')!
+  assert.equal(player.kind,'truck')
+  assert.equal(player.access?.control,'player')
+  assert.equal(entryInSection(player,'ai'),false,'Que la IA pueda ayudar a construir no convierte al camión en un convoy')
   assert.deepEqual(missingImages.filter(entry => !entry.internalName.startsWith('auto_base_')).map(entry => entry.internalName).sort(), expectedWithoutOfficialImage.sort())
   assert.equal(scan.entries.some(entry => /wheel/i.test(entry.internalName)), false, 'Las llantas no deben aparecer en el catálogo')
   await rm(testUserData, { recursive: true, force: true })
 
-  console.log(`Catálogo verificado: ${packaged.length} clases registradas, ${aiEntries.length} de IA y ${missingImages.length} clases sin imagen oficial. Primer análisis sin imagen: ${firstMissingImages.length}.`)
+  console.log(`Catálogo verificado: ${packaged.length} clases, ${aiEntries.length} configuraciones logísticas (19 exclusivas y 3 compartidas). ${missingImages.length} clases sin imagen oficial. Primer análisis sin imagen: ${firstMissingImages.length}.`)
   app.quit()
 }
 
