@@ -127,6 +127,7 @@ export interface PreviewMaterial {
 
 export interface VehiclePreviewAsset {
   format?: 'fbx' | 'tpl'
+  modelEncoding?: 'gzip-json'
   modelUrl: string
   modelImportScale: number
   textures: Record<string, string>

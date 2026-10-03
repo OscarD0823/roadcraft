@@ -6,6 +6,7 @@
 - Modelos originales TPL/TPL_DATA y texturas leídos de la instalación local, con geometría y transformaciones comprobadas en los 118 modelos distintos del catálogo. Se conservan fuentes FBX y la carátula como alternativa ante formatos incompatibles.
 - Corrige la selección de niveles de textura y completa las ruedas de la fuente TUZ que solo tiene modelo compilado.
 - Permite alternar entre modelo 3D y carátula original, cuando existe, para comparar con la apariencia del juego.
+- Caché de geometría comprimida para reducir el espacio local utilizado por el visor.
 - Nueva animación: el explorador espera mientras volquete, dozer, asfaltadora y rodillo construyen la carretera; pasa el camión de carga y después sale el explorador.
 - Respeta movimiento reducido, pantalla dividida y el selector de los 15 idiomas. Español e inglés completos; los demás conservan respaldo en inglés para textos sin traducción.
 

@@ -52,8 +52,15 @@ onMounted(async () => {
       const name = decodeURIComponent(url).replaceAll('\\', '/').split('/').pop()?.toLowerCase() ?? ''
       return asset.textures[name] ?? EMPTY_TEXTURE
     })
-    const loader = new FBXLoader(manager), model = asset.format === 'tpl'
-      ? await new THREE.ObjectLoader().loadAsync(asset.modelUrl) : await loader.loadAsync(asset.modelUrl)
+    const loader = new FBXLoader(manager)
+    async function loadCompiled() {
+      if (asset!.modelEncoding !== 'gzip-json') return new THREE.ObjectLoader().loadAsync(asset!.modelUrl)
+      const response = await fetch(asset!.modelUrl)
+      if (!response.ok || !response.body) throw new Error('Could not read cached model')
+      const json = await new Response(response.body.pipeThrough(new DecompressionStream('gzip'))).json()
+      return new THREE.ObjectLoader().parseAsync(json)
+    }
+    const model = asset.format === 'tpl' ? await loadCompiled() : await loader.loadAsync(asset.modelUrl)
     pendingModels.add(model)
     const maps = new Map<string, THREE.Texture>(), materials = new Map<string, THREE.Material>()
     async function getTexture(url: string, color: boolean) {

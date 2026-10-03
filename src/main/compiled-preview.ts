@@ -4,6 +4,8 @@ import { existsSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { createHash } from 'node:crypto'
+import { gzip, gunzip } from 'node:zlib'
+import { promisify } from 'node:util'
 import * as THREE from 'three'
 import { decodeBC1, decodeBC3, decodeBC5, decodeBC7, makePNG } from 'tex-decoder'
 import { readTplModel, decodeTplSurfaces } from './tpl-model'
@@ -12,6 +14,7 @@ import type { PreviewMaterial, VehiclePreviewAsset } from '../shared'
 
 interface Location { path: string; entry: string }
 interface Descriptor { width: number; height: number; format: number; mips: string[] }
+const compress = promisify(gzip), decompress = promisify(gunzip)
 export interface WheelSlot { frame: string; model: string; right: boolean; directory?: string; scale?: number }
 
 /** Own, bounded, read-only decoder. Geometry and PNGs are local caches only;
@@ -118,7 +121,9 @@ export class CompiledPreviewStore {
       const asset = await this.get(slot.model, slot.directory)
       if (!asset) continue
       wheelVersions.push(asset.modelUrl)
-      const wheel = new THREE.ObjectLoader().parse(JSON.parse(await readFile(new URL(asset.modelUrl), 'utf8')))
+      const encoded = await readFile(new URL(asset.modelUrl))
+      const json = asset.modelEncoding === 'gzip-json' ? await decompress(encoded) : encoded
+      const wheel = new THREE.ObjectLoader().parse(JSON.parse(json.toString('utf8')))
       if (slot.scale && slot.scale > 0 && slot.scale <= 10) wheel.scale.multiplyScalar(slot.scale)
       const group = new THREE.Group(); group.name = 'preview_wheel_' + slot.frame
       new THREE.Matrix4().fromArray(frame.bindTransform).decompose(group.position, group.quaternion, group.scale)
@@ -128,9 +133,9 @@ export class CompiledPreviewStore {
     }
     const size = new THREE.Box3().setFromObject(model).getSize(new THREE.Vector3())
     if (!size.toArray().every(value => value > .1 && value < 150)) throw new Error('TPL dimensions outside preview limits')
-    const target = join(this.cacheRoot, createHash('sha1').update(tpl).update(data).update(JSON.stringify(wheels)).update(JSON.stringify(wheelVersions)).update('geometry-v4').digest('hex') + '.json')
-    if (!existsSync(target)) await writeFile(target, JSON.stringify(model.toJSON()))
+    const target = join(this.cacheRoot, createHash('sha1').update(tpl).update(data).update(JSON.stringify(wheels)).update(JSON.stringify(wheelVersions)).update('geometry-v5').digest('hex') + '.json.gz')
+    if (!existsSync(target)) await writeFile(target, await compress(JSON.stringify(model.toJSON())))
     model.traverse(object => { if (object instanceof THREE.Mesh) { object.geometry.dispose(); (object.material as THREE.Material).dispose() } })
-    return { format: 'tpl', modelUrl: pathToFileURL(target).href, modelImportScale: 1, wheelImportScale: 1, wheelScale: 1, textures: {}, materials }
+    return { format: 'tpl', modelEncoding: 'gzip-json', modelUrl: pathToFileURL(target).href, modelImportScale: 1, wheelImportScale: 1, wheelScale: 1, textures: {}, materials }
   }
 }
