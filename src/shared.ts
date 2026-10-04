@@ -118,8 +118,24 @@ export interface SaveGameData {
   money: number
   xp: number
   companyName: string
+  companyCustomization?: CompanyCustomization
   trucks: SaveTruckState[]
   maps: SaveMapState[]
+}
+
+export interface CompanyCustomization {
+  truckMaterialName: string
+  graffitiBackgound?: string
+  graffitiLogotype?: string
+  BackgoundMaterialName?: string
+  LogotypeMaterialName?: string
+}
+
+export interface CompanyPaint {
+  id: string
+  materialName: string
+  colors: number[][]
+  isLivery: boolean
 }
 
 export interface SaveGameChanges {
@@ -143,6 +159,8 @@ export interface PreviewMaterial {
   tintG?: number[]
   maskFromAlbedoAlpha?: boolean
   paintable?: boolean
+  customizationMasks?: Record<string, string>
+  customizationMask?: string
 }
 
 export interface VehiclePreviewAsset {
@@ -156,10 +174,14 @@ export interface VehiclePreviewAsset {
   wheelImportScale: number
   wheelScale: number
   paintColor?: number[]
+  paint?: CompanyPaint
+  paintSource?: 'company' | 'original'
+  paintPartial?: boolean
 }
 
 export interface RoadCraftApi {
-  getPreview(id: string): Promise<VehiclePreviewAsset | undefined>
+  getPreview(id: string, companyMaterial?: string): Promise<VehiclePreviewAsset | undefined>
+  getCompanyPaint(material: string): Promise<CompanyPaint | undefined>
   getSettings(): Promise<{ installPath: string; locale: string; version: string }>
   scan(): Promise<ScanResult>
   chooseInstall(): Promise<ScanResult | undefined>

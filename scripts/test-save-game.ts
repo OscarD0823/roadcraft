@@ -18,6 +18,7 @@ const fixture: DecodedCompleteSave = {
       money: 10_000,
       xp: 25_000,
       companyName: 'Studio Test',
+      companyCustomization: { truckMaterialName:'customization_material_28',graffitiBackgound:'empty',graffitiLogotype:'empty',unknownFutureField:{keep:true} },
       lockedTrucks: ['truck_locked'],
       unlockedTrucks: {
         rb_map_01_storm_preparation: ['truck_open'],
@@ -61,6 +62,7 @@ const initial = createSaveGameData(decoded, {
 })
 
 assert.equal(initial.money, 10_000)
+assert.equal(initial.companyCustomization?.truckMaterialName,'customization_material_28')
 assert.equal(initial.trucks.length, 2)
 assert.equal(initial.maps[0]?.resources.steelPipes, 8)
 
@@ -97,6 +99,7 @@ assert.equal(edited.maps[0]?.progress, 100)
 assert.equal(edited.maps[0]?.resources.logs, 101)
 assert.deepEqual(verified.document.untouchedTopLevel, { keep: true })
 assert.deepEqual(root.unknownGameField, { mustSurvive: true })
+assert.deepEqual(root.companyCustomization, (fixture.document.SslValue as Record<string,unknown>).companyCustomization, 'Player edits must preserve every paint field')
 assert.equal((root.fobsResources as Record<string, { untouched: string }>).rb_map_01_storm_preparation.untouched, 'yes')
 assert.equal(verified.header.readUInt32LE(8), 0x10203040)
 assert.equal(verified.header.readUInt32LE(16), 0x50607080)

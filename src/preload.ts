@@ -2,7 +2,8 @@ import { contextBridge, ipcRenderer } from 'electron'
 import type { RoadCraftApi, SaveGameChanges, SavePayload } from './shared'
 
 const api: RoadCraftApi = {
-  getPreview: (id: string) => ipcRenderer.invoke('roadcraft:get-preview', id),
+  getPreview: (id: string, companyMaterial?: string) => ipcRenderer.invoke('roadcraft:get-preview', id, companyMaterial),
+  getCompanyPaint: (material: string) => ipcRenderer.invoke('roadcraft:get-company-paint', material),
   getSettings: () => ipcRenderer.invoke('roadcraft:get-settings'),
   scan: () => ipcRenderer.invoke('roadcraft:scan'),
   chooseInstall: () => ipcRenderer.invoke('roadcraft:choose-install'),

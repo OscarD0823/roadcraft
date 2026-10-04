@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import { deflateSync, inflateSync } from 'node:zlib'
 import type { SaveGameChanges, SaveGameData, SaveMapState, SaveTruckState } from '../shared'
+import { readCompanyCustomization } from './company-paint'
 
 const HEADER_LENGTH = 53
 const RESOURCE_INDEX = {
@@ -158,6 +159,7 @@ export function createSaveGameData(decoded: DecodedCompleteSave, identity: SaveF
     money: integerOr(root.money, 0),
     xp: integerOr(root.xp, 0),
     companyName: typeof root.companyName === 'string' ? root.companyName : '',
+    companyCustomization: readCompanyCustomization(root),
     trucks,
     maps
   }

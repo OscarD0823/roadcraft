@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url'
 import assert from 'node:assert/strict'
 import { createWriteStream } from 'node:fs'
 import { testJourney } from './test-journey.mjs'
+import { testCompanyPaint } from './test-company-ui.mjs'
 const root = dirname(dirname(fileURLToPath(import.meta.url))), output = join(root, 'out', 'qa-ui'), port = 9335
 await mkdir(output, { recursive: true })
 // Preserve this isolated cache across Vite builds; never use the user's settings.
@@ -19,7 +20,9 @@ try {await readFile(join(dataRoot,'settings.json'))}catch{
   }catch{}
 }
 const log=createWriteStream(join(output,'application.log'))
-const child = spawn(process.env.ROADCRAFT_APP_EXE ?? join(root, 'out', 'RoadCraft Studio-win32-x64', 'RoadCraft Studio.exe'), [`--remote-debugging-port=${port}`, `--user-data-dir=${join(output, 'data')}`], { stdio:['ignore','pipe','pipe'], windowsHide:false, env: { ...process.env, ROADCRAFT_DATA_ROOT: join(output, 'data') } })
+const companyFixture=process.env.ROADCRAFT_COMPANY_FIXTURE==='1'
+if(companyFixture)await promisify(execFile)(process.execPath,[join(root,'node_modules/tsx/dist/cli.mjs'),join(root,'scripts/qa-company-fixture.ts')],{cwd:root,windowsHide:true})
+const child = spawn(process.env.ROADCRAFT_APP_EXE ?? join(root, 'out', 'RoadCraft Studio-win32-x64', 'RoadCraft Studio.exe'), [`--remote-debugging-port=${port}`, `--user-data-dir=${join(output, 'data')}`], { stdio:['ignore','pipe','pipe'], windowsHide:false, env: { ...process.env, ROADCRAFT_DATA_ROOT: join(output, 'data'),...(companyFixture?{LOCALAPPDATA:join(output,'company-local')}:{}) } })
 child.stdout.pipe(log,{end:false});child.stderr.pipe(log,{end:false})
 child.on('exit',(code,signal)=>{if(!log.writableEnded)log.end(`\nApplication exit: ${code} ${signal}\n`)})
 let socket
@@ -38,6 +41,7 @@ try {
     const item = JSON.parse(event.data)
     if (!item.id) {
       if (item.method==='Runtime.exceptionThrown') errors.push(item.params.exceptionDetails.text)
+      if (item.method==='Runtime.consoleAPICalled' && item.params.type==='error') errors.push(item.params.args.map(a=>a.value??a.description).join(' '))
       if (item.method==='Runtime.consoleAPICalled' && item.params.type==='warning') warnings.push(item.params.args.map(a=>a.value??a.description).join(' '))
       return
     }
@@ -54,6 +58,7 @@ try {
   await call('Emulation.setFocusEmulationEnabled',{enabled:true})
   await call('Page.bringToFront')
   await wait('document.querySelectorAll(".content-card").length > 80')
+  if(companyFixture)await wait(`document.querySelector('.workspace-journey')?.dataset.paint==='customization_material_28'`)
   const {stdout}=await promisify(execFile)('powershell.exe',['-NoProfile','-NonInteractive','-Command',`Get-Process -Id ${child.pid} | ForEach-Object { [pscustomobject]@{Visible=($_.MainWindowHandle -ne 0);Title=$_.MainWindowTitle} } | ConvertTo-Json -Compress`],{windowsHide:true})
   const nativeWindow=JSON.parse(stdout.trim())
   assert.equal(nativeWindow.Visible,true,'Application loaded but its Windows window stayed hidden')
@@ -64,11 +69,12 @@ try {
   if(process.env.ROADCRAFT_JOURNEY_ONLY==='1'){
     await writeFile(join(output,'journey-results.json'),JSON.stringify({nativeWindow,counts,animation,errors},null,2))
     assert.deepEqual(errors,[])
-    console.log('Logo verified: 10 stages, two reverse deliveries, two grader passes, scout waits, loop resets, reduced motion.')
+    console.log('Logo verified: 12 stages, loaded outbound/reverse return, tracked excavator out/back, normal second sand delivery, scout waits, loop resets, reduced motion.')
     return
   }
   const scan=await evaluate('window.roadcraft.scan()')
   const all=scan.entries, images=[]
+  const company=companyFixture?await testCompanyPaint({evaluate,wait,all}):undefined
   assert.equal(all.find(e=>e.sourceType==='bro' && e.kind==='other')?.access?.control,'unknown','A source resource is not a player vehicle')
   // Read every cover independently of lazy loading. No game or save writes.
   for(const entry of all){
@@ -242,7 +248,7 @@ try {
   }
   await evaluate(`(()=>{const select=document.querySelector('.language-select select');select.value='es';select.dispatchEvent(new Event('change',{bubbles:true}))})()`)
   if(errors.length)throw new Error(errors.join('\n'))
-  const result={nativeWindow,counts,animation,base,source,layout,classification,images,previews,languages,errors,warnings};await writeFile(join(output,'results.json'),JSON.stringify(result,null,2));console.log(JSON.stringify({nativeWindow,counts,animation:animation.map(({fraction,label,visible})=>({fraction,label,visible})),base,source,layout,classification,images:images.length,missingImages:images.filter(i=>!i.image).map(i=>i.name),previews:previews.length,languages,errors,warnings},null,2))
+  const result={nativeWindow,counts,company,animation,base,source,layout,classification,images,previews,languages,errors,warnings};await writeFile(join(output,'results.json'),JSON.stringify(result,null,2));console.log(JSON.stringify({nativeWindow,counts,company,animation:animation.map(({fraction,label,visible})=>({fraction,label,visible})),base,source,layout,classification,images:images.length,missingImages:images.filter(i=>!i.image).map(i=>i.name),previews:previews.length,languages,errors,warnings},null,2))
 } finally {socket?.close();child.kill()}
 }
 await runQA()

@@ -1,9 +1,9 @@
 <template>
-  <div class="startup-journey" :class="{ 'startup-journey--loop': loop }" aria-hidden="true">
+  <div class="startup-journey" :class="{ 'startup-journey--loop': loop }" :data-paint="paint?.id ?? 'original'" :style="paintStyle" aria-hidden="true">
     <svg viewBox="0 0 900 240" xmlns="http://www.w3.org/2000/svg">
       <defs>
         <linearGradient :id="`${id}-sky`" x2="0" y2="1"><stop stop-color="#112739" /><stop offset="1" stop-color="#708781" /></linearGradient>
-        <linearGradient :id="`${id}-steel`" x2="0" y2="1"><stop stop-color="#ffc477" /><stop offset="1" stop-color="#b55a29" /></linearGradient>
+        <linearGradient :id="`${id}-steel`" x2="0" y2="1"><stop class="paint-primary" stop-color="#ffc477" /><stop class="paint-secondary" offset="1" stop-color="#b55a29" /></linearGradient>
         <linearGradient :id="`${id}-road`" x2="0" y2="1"><stop stop-color="#485561" /><stop offset="1" stop-color="#25343f" /></linearGradient>
         <clipPath :id="`${id}-rough`"><rect class="terrain-progress" y="170" width="900" height="70" /></clipPath>
         <clipPath v-for="phase in ['sand-1', 'graded-1', 'sand-2', 'graded-2', 'paved', 'rolled']" :id="`${id}-${phase}`" :key="phase"><rect class="road-progress" :class="`road-progress--${phase}`" y="177" width="900" height="63" /></clipPath>
@@ -33,10 +33,10 @@
       <g :clip-path="`url(#${id}-rolled)`"><path d="M0 205H900V235H0Z" :fill="`url(#${id}-road)`" /><path d="M0 220H900" stroke="#e5cba3" stroke-width="2" stroke-dasharray="23 18" /><path d="M0 207H900M0 233H900" stroke="#9eaa9f" stroke-width="1" opacity=".5" /></g>
       <path class="scout-shoulder" d="M794 205v-17q20-8 42-4h64v21Z" fill="#526957" /><path d="M804 187h96" stroke="#89917b" stroke-width="2" />
       <g class="journey-portal"><circle cx="58" cy="137" r="39" fill="#112c37" stroke="#d79951" opacity=".85" /><circle class="logo-ring" cx="58" cy="137" r="35" fill="none" stroke="#ffc176" stroke-dasharray="24 16" /><image :href="appIcon" x="33" y="112" width="50" height="50" /></g>
-      <!-- Rough survey → reverse sand → grade → reverse sand → grade → pave → roll → cargo → scout departure. -->
+      <!-- Survey → loaded outbound / reverse discharge → excavator out/back → forward sand → excavator → pave → roll → cargo → scout. -->
       <g class="machine machine--scout" data-machine="scout">
         <ellipse cx="48" cy="51" rx="51" ry="5" fill="#10272e" opacity=".35" />
-        <g class="machine-body"><path d="M2 20h21L36 0h34l16 20h14v22H2Z" fill="#d39a57" /><path d="M38 5h29l10 14H30Z" fill="#bfd5d0" /><path d="M52 5v15M10 27h77" stroke="#7d5e3e" stroke-width="2" /><rect x="86" y="24" width="12" height="6" rx="2" fill="#ffe9b7" /><path d="M5 3h20M38-3h32" stroke="#283d43" stroke-width="5" /></g>
+        <g class="machine-body"><path class="paint-primary" d="M2 20h21L36 0h34l16 20h14v22H2Z" fill="#d39a57" /><path class="paint-accent" d="M3 30h95v5H3Z" fill="#ae7442" /><path d="M38 5h29l10 14H30Z" fill="#bfd5d0" /><path d="M52 5v15M10 27h77" stroke="#7d5e3e" stroke-width="2" /><rect x="86" y="24" width="12" height="6" rx="2" fill="#ffe9b7" /><path d="M5 3h20M38-3h32" stroke="#283d43" stroke-width="5" /></g>
         <g v-for="x in [22, 79]" :key="x" :transform="`translate(${x},40)`"><use class="rolling-wheel" :href="`#${id}-wheel`" /></g>
         <g class="mud-splash" fill="#856347"><path d="M17 46 4 37l3 10-14-2 11 9-19 1 27 4Z" /><circle cx="-11" cy="39" r="3" /><circle cx="-22" cy="49" r="2" /></g>
       </g>
@@ -44,14 +44,14 @@
         <ellipse cx="100" cy="72" rx="105" ry="6" fill="#10272e" opacity=".35" />
         <g v-if="pass === 1"><use :href="`#${id}-track`" x="3" y="47" /><use :href="`#${id}-track`" x="118" y="47" /></g>
         <g v-else><g v-for="x in [24, 63, 173]" :key="x" :transform="`translate(${x},60)`"><use class="rolling-wheel" :href="`#${id}-wheel`" /></g></g>
-        <g class="machine-body"><path d="M8 37h177v18H8Z" fill="#253c44" /><g class="dump-bed"><path d="M4 6h109l-9 30H18Z" :fill="pass === 1 ? '#487489' : '#a26e42'" stroke="#c1b899" stroke-width="3" /><path d="M14 13h87M32 9v20M56 9v22M81 9v21" stroke="#344c50" stroke-width="3" /><path d="M15 5q32-14 77 0" fill="#d7ae75" /></g><path d="M136 0h43l20 21v28h-66Z" :fill="pass === 1 ? '#587f90' : '#cf9558'" /><path d="M142 5h32l15 15h-47Z" fill="#c2d6d3" /><rect x="192" y="27" width="9" height="5" fill="#ffe4a4" /><path d="M116 35h22M143 0V-9h10" stroke="#394c52" stroke-width="5" /></g>
-        <g class="sand-stream" fill="#e6b778"><circle v-for="(x, i) in [-4, -10, -16, -23, -29]" :key="x" :cx="x" :cy="30 + i * 7" :r="2 + i % 2" /></g>
+        <g class="machine-body"><path d="M8 37h177v18H8Z" fill="#253c44" /><g class="dump-bed"><path class="paint-secondary" d="M4 6h109l-9 30H18Z" :fill="pass === 1 ? '#487489' : '#a26e42'" stroke="#c1b899" stroke-width="3" /><path d="M14 13h87M32 9v20M56 9v22M81 9v21" stroke="#344c50" stroke-width="3" /><path d="M15 5q32-14 77 0" fill="#d7ae75" /></g><path class="paint-primary" d="M136 0h43l20 21v28h-66Z" :fill="pass === 1 ? '#587f90' : '#cf9558'" /><path class="paint-accent" d="M137 33h60v6h-60Z" fill="#839ba0" /><path d="M142 5h32l15 15h-47Z" fill="#c2d6d3" /><rect x="192" y="27" width="9" height="5" fill="#ffe4a4" /><path d="M116 35h22M143 0V-9h10" stroke="#394c52" stroke-width="5" /></g>
+        <g class="sand-discharge"><g class="sand-stream" fill="#e6b778"><circle v-for="(x, i) in [-4, -10, -16, -23, -29]" :key="x" :cx="x" :cy="30 + i * 7" :r="2 + i % 2" /></g></g>
       </g>
-      <g class="machine machine--grader" data-machine="grader">
-        <ellipse cx="112" cy="71" rx="116" ry="5" fill="#10272e" opacity=".35" />
-        <g class="machine-body"><path d="M5 22h66v27H5Z" :fill="`url(#${id}-steel)`" /><path d="M62 35V-8h38v41" fill="#435c60" stroke="#e4b66f" stroke-width="4" /><path d="M68-2h25v26H68Z" fill="#bdd6d1" /><path d="M57-10h48M19 21V7h8" stroke="#cfaa70" stroke-width="5" /><path d="M96 31 182 21l36 23M91 43h108" fill="none" stroke="#d9a25e" stroke-width="9" /><path d="m129 27-8 29m27-30-7 30" stroke="#70867d" stroke-width="4" /><path d="m98 54 69-7-4 20-69 2Z" fill="#d9c39b" stroke="#926e48" stroke-width="3" /><path d="M203 36v18M10 31h32M10 38h32" stroke="#3e5658" stroke-width="3" /></g>
-        <g v-for="x in [26, 61, 207]" :key="x" :transform="`translate(${x},54)`"><use class="rolling-wheel" :href="`#${id}-wheel`" /></g>
-        <path class="dust" d="m91 66 12-8 16 9 14-5 19 8H86" fill="#ddba83" opacity=".7" />
+      <g class="machine machine--excavator" data-machine="excavator">
+        <ellipse cx="99" cy="70" rx="106" ry="5" fill="#10272e" opacity=".35" />
+        <use :href="`#${id}-track`" x="13" y="43" /><use :href="`#${id}-track`" x="55" y="43" />
+        <g class="machine-body"><path class="paint-primary" d="M15 22h83v29H15Z" :fill="`url(#${id}-steel)`" /><path class="paint-secondary" d="M55 27V-10h42v40Z" fill="#d49c58" /><path d="M62-4h29v24H62Z" fill="#bdd6d1" /><path d="M51-12h53M21 20V4h8" stroke="#293c44" stroke-width="5" /><path class="paint-primary-stroke excavator-arm" d="m99 25 22-45 30 23 24 41" fill="none" stroke="#d6a15c" stroke-width="11" stroke-linejoin="round" /><path d="m112 17 16-23m24 10 14 28" stroke="#ced1ba" stroke-width="3" /><circle cx="122" cy="-18" r="4" fill="#34484c" /><path class="paint-accent" d="M160 40h32l-2 27h-38l8-14Z" fill="#c6b18a" stroke="#68796f" stroke-width="3" /><path d="M28 28h22M28 35h22M88 37l59 15" stroke="#33494e" stroke-width="4" /></g>
+        <path class="dust" d="m150 67 11-8 16 9 14-5 19 8h-67" fill="#ddba83" opacity=".7" />
       </g>
       <g class="machine machine--paver" data-machine="paver">
         <use :href="`#${id}-track`" x="35" y="43" /><g class="machine-body"><path d="M20 25h102v26H20Z" :fill="`url(#${id}-steel)`" /><path d="M72 26V-13M117 27V-13M60-14h70" stroke="#c9af79" stroke-width="5" /><path d="M86 12V0h16v12" fill="#213b46" /><path d="M120 11h39l-7 34h-34Z" fill="#d9a05a" stroke="#f2c983" stroke-width="3" /><path d="M2 52h45v16H2Z" fill="#384c50" /><path d="M14 39 26 52" stroke="#809287" stroke-width="6" /></g>
@@ -68,27 +68,33 @@
 </template>
 
 <script setup lang="ts">
-import { useId } from 'vue'
-defineProps<{ loop?: boolean }>()
+import { computed, useId } from 'vue'
+import type { CompanyPaint } from '../../shared'
+const props = defineProps<{ loop?: boolean; paint?: CompanyPaint }>()
+const paintStyle = computed(() => props.paint ? Object.fromEntries(props.paint.colors.map((rgb,i) => [['--company-primary','--company-secondary','--company-accent'][i], `rgb(${rgb.join(',')})`])) : {})
 const id = useId().replace(/:/g, '')
 const appIcon = new URL('../../assets/app-icon.png', import.meta.url).href
 </script>
 
 <style scoped>
-.startup-journey { --journey-time: 42s; width: 100%; overflow: hidden; border-radius: 18px; isolation: isolate; background: #132a38; }
+.startup-journey { --journey-time: 54s; width: 100%; overflow: hidden; border-radius: 18px; isolation: isolate; background: #132a38; }
+.startup-journey:not([data-paint="original"]) .paint-primary { fill:var(--company-primary);stop-color:var(--company-primary); }
+.startup-journey:not([data-paint="original"]) .paint-secondary { fill:var(--company-secondary);stop-color:var(--company-secondary); }
+.startup-journey:not([data-paint="original"]) .paint-accent { fill:var(--company-accent); }
+.startup-journey:not([data-paint="original"]) .paint-primary-stroke { stroke:var(--company-primary); }
 svg { display: block; width: 100%; height: auto; }
 .machine { opacity: 0; transform: translate(-240px, 140px); animation-duration: var(--journey-time); animation-timing-function: linear; animation-fill-mode: both; }
 .startup-journey--loop .machine, .startup-journey--loop .road-progress, .startup-journey--loop .terrain-progress,
-.startup-journey--loop .dump-bed, .startup-journey--loop .mud-splash, .startup-journey--loop .machine--scout .rolling-wheel { animation-iteration-count: infinite; }
+.startup-journey--loop .dump-bed, .startup-journey--loop .sand-discharge, .startup-journey--loop .mud-splash, .startup-journey--loop .machine--scout .rolling-wheel { animation-iteration-count: infinite; }
 .machine--scout { animation-name: scout; }
 .machine--dump-1 { animation-name: dump-first; }
 .machine--dump-2 { animation-name: dump-second; }
-.machine--grader { animation-name: grader; }
+.machine--excavator { animation-name: excavator; }
 .machine--paver { animation-name: paver; }
 .machine--roller { animation-name: roller; }
 .machine--cargo { animation-name: cargo; }
 .road-progress { transform: scaleX(0); transform-origin: 0 220px; animation-duration: var(--journey-time); animation-timing-function: linear; animation-fill-mode: both; }
-.road-progress--sand-1, .road-progress--sand-2 { transform-origin: 900px 220px; }
+.road-progress--sand-1 { transform-origin: 900px 220px; }
 .road-progress--sand-1 { animation-name: sand-road-first; }
 .road-progress--graded-1 { animation-name: graded-road-first; }
 .road-progress--sand-2 { animation-name: sand-road-second; }
@@ -99,9 +105,9 @@ svg { display: block; width: 100%; height: auto; }
 .machine-body { animation: suspension .7s ease-in-out infinite alternate; }
 .machine--scout .rolling-wheel { animation: scout-wheels var(--journey-time) linear both; }
 .machine--scout .machine-body { animation: none; }
-.machine--dump .rolling-wheel { animation-direction: reverse; }
 .terrain-progress { transform-origin: 0 220px; animation: rough-road var(--journey-time) linear both; }
 .dump-bed { transform-origin: 7px 34px; animation: tip-bed var(--journey-time) linear both; }
+.sand-discharge { opacity:0;animation: discharge var(--journey-time) linear both; }
 .mud-splash { opacity: 0; animation: mud-splash var(--journey-time) linear both; }
 .sand-stream { animation: sand .42s linear infinite; }
 .dust { animation: sand .7s ease-out infinite; }
@@ -121,40 +127,48 @@ svg { display: block; width: 100%; height: auto; }
   99.5% { opacity: 1; transform: translate(940px, 143px) scale(.75); }
   100% { opacity: 0; transform: translate(940px, 143px) scale(.75); }
 }
-/* The cab faces right while the volquete travels left: both deliveries reverse. */
+/* The first truck leaves the portal loaded, then returns without changing heading. */
 @keyframes dump-first {
-  0%, 13.9% { opacity: 0; transform: translate(940px, 130px); }
-  14% { opacity: 1; transform: translate(940px, 130px); }
-  26% { opacity: 1; transform: translate(-230px, 130px); }
-  26.1%, 100% { opacity: 0; transform: translate(-230px, 130px); }
+  0%, 11.9% { opacity:0;transform:translate(52px,137px) scale(.1); }
+  12% { opacity:1;transform:translate(52px,137px) scale(.1); }
+  14% { transform:translate(105px,130px); }
+  21%, 22% { opacity:1;transform:translate(940px,130px); }
+  32% { opacity:1;transform:translate(52px,130px); }
+  33% { opacity:0;transform:translate(52px,137px) scale(.1); }
+  100% { opacity:0;transform:translate(52px,137px) scale(.1); }
 }
 @keyframes dump-second {
-  0%, 41.9% { opacity: 0; transform: translate(940px, 130px); }
-  42% { opacity: 1; transform: translate(940px, 130px); }
-  54% { opacity: 1; transform: translate(-230px, 130px); }
-  54.1%, 100% { opacity: 0; transform: translate(-230px, 130px); }
+  0%, 51.9% { opacity:0;transform:translate(52px,137px) scale(.1); }
+  52% { opacity:1;transform:translate(52px,137px) scale(.1); }
+  54% { transform:translate(105px,130px); }
+  63% { opacity:1;transform:translate(940px,130px); }
+  63.1%, 100% { opacity:0;transform:translate(940px,130px); }
 }
-@keyframes grader {
-  0%, 27.9% { opacity: 0; transform: translate(-250px, 136px); }
-  28% { opacity: 1; transform: translate(-250px, 136px); }
-  40% { opacity: 1; transform: translate(940px, 136px); }
-  40.1%, 55.9% { opacity: 0; transform: translate(-250px, 136px); }
-  56% { opacity: 1; transform: translate(-250px, 136px); }
-  68% { opacity: 1; transform: translate(940px, 136px); }
-  68.1%, 100% { opacity: 0; transform: translate(940px, 136px); }
+@keyframes excavator {
+  0%, 34.9% { opacity:0;transform:translate(52px,137px) scale(.1); }
+  35% { opacity:1;transform:translate(52px,137px) scale(.1); }
+  37% { transform:translate(105px,134px); }
+  44% { opacity:1;transform:translate(940px,134px); }
+  49% { opacity:1;transform:translate(52px,134px); }
+  50%, 64.9% { opacity:0;transform:translate(52px,137px) scale(.1); }
+  65% { opacity:1;transform:translate(52px,137px) scale(.1); }
+  67% { transform:translate(105px,134px); }
+  75% { opacity:1;transform:translate(940px,134px); }
+  75.1%, 100% { opacity:0;transform:translate(940px,134px); }
 }
-@keyframes paver { 0%, 69.9% { opacity: 0; transform: translate(-180px, 135px); } 70% { opacity: 1; transform: translate(-180px, 135px); } 78% { opacity: 1; transform: translate(940px, 135px); } 78.1%, 100% { opacity: 0; transform: translate(940px, 135px); } }
-@keyframes roller { 0%, 79.9% { opacity: 0; transform: translate(-150px, 134px); } 80% { opacity: 1; transform: translate(-150px, 134px); } 87% { opacity: 1; transform: translate(940px, 134px); } 87.1%, 100% { opacity: 0; transform: translate(940px, 134px); } }
-@keyframes cargo { 0%, 88.9% { opacity: 0; transform: translate(-230px, 137px); } 89% { opacity: 1; transform: translate(-230px, 137px); } 94% { opacity: 1; transform: translate(940px, 137px); } 94.1%, 100% { opacity: 0; transform: translate(940px, 137px); } }
+@keyframes paver { 0%, 76.9% { opacity:0;transform:translate(-180px,135px); } 77% { opacity:1;transform:translate(-180px,135px); } 83% { opacity:1;transform:translate(940px,135px); } 83.1%, 100% { opacity:0;transform:translate(940px,135px); } }
+@keyframes roller { 0%, 84.9% { opacity:0;transform:translate(-150px,134px); } 85% { opacity:1;transform:translate(-150px,134px); } 90% { opacity:1;transform:translate(940px,134px); } 90.1%, 100% { opacity:0;transform:translate(940px,134px); } }
+@keyframes cargo { 0%, 90.9% { opacity:0;transform:translate(-230px,137px); } 91% { opacity:1;transform:translate(-230px,137px); } 94% { opacity:1;transform:translate(940px,137px); } 94.1%, 100% { opacity:0;transform:translate(940px,137px); } }
 /* The reveal edge follows each machine's discharge, blade, screed or drum. */
-@keyframes rough-road { 0%, 14.4% { transform: scaleX(1); } 23.6%, 100% { transform: scaleX(0); } }
-@keyframes sand-road-first { 0%, 14.4% { transform: scaleX(0); } 23.6%, 100% { transform: scaleX(1); } }
-@keyframes graded-road-first { 0%, 29.3% { transform: scaleX(0); } 38.3%, 100% { transform: scaleX(1); } }
-@keyframes sand-road-second { 0%, 42.4% { transform: scaleX(0); } 51.6%, 100% { transform: scaleX(1); } }
-@keyframes graded-road-second { 0%, 57.3% { transform: scaleX(0); } 66.3%, 100% { transform: scaleX(1); } }
-@keyframes paved-road { 0%, 71.3% { transform: scaleX(0); } 77.7%, 100% { transform: scaleX(1); } }
-@keyframes rolled-road { 0%, 80.3% { transform: scaleX(0); } 86.1%, 100% { transform: scaleX(1); } }
-@keyframes tip-bed { 0%, 14% { transform: rotate(0); } 15%, 24% { transform: rotate(-20deg); } 26%, 42% { transform: rotate(0); } 43%, 52% { transform: rotate(-20deg); } 54%, 100% { transform: rotate(0); } }
+@keyframes rough-road { 0%, 22.3% { transform:scaleX(1); } 33%, 100% { transform:scaleX(0); } }
+@keyframes sand-road-first { 0%, 22.3% { transform:scaleX(0); } 33%, 100% { transform:scaleX(1); } }
+@keyframes graded-road-first { 0%, 35.1% { transform:scaleX(0); } 42.9%, 100% { transform:scaleX(1); } }
+@keyframes sand-road-second { 0%, 52.1% { transform:scaleX(0); } 62.9%, 100% { transform:scaleX(1); } }
+@keyframes graded-road-second { 0%, 65.1% { transform:scaleX(0); } 73.7%, 100% { transform:scaleX(1); } }
+@keyframes paved-road { 0%, 78% { transform:scaleX(0); } 82.8%, 100% { transform:scaleX(1); } }
+@keyframes rolled-road { 0%, 85.2% { transform:scaleX(0); } 89.4%, 100% { transform:scaleX(1); } }
+@keyframes tip-bed { 0%, 22% { transform:rotate(0); } 23%, 31.5% { transform:rotate(-20deg); } 33%, 52% { transform:rotate(0); } 53%, 62% { transform:rotate(-20deg); } 63%, 100% { transform:rotate(0); } }
+@keyframes discharge { 0%, 22% { opacity:0; } 22.3%, 32% { opacity:1; } 33%, 52% { opacity:0; } 52.3%, 62.9% { opacity:1; } 63%, 100% { opacity:0; } }
 @keyframes mud-splash { 0%, 5.2% { opacity: 0; } 5.4%, 6.7% { opacity: .85; } 7%, 100% { opacity: 0; } }
 @keyframes scout-wheels { 0% { transform: rotate(0); } 12%, 94.3% { transform: rotate(1440deg); } 99.5%, 100% { transform: rotate(1800deg); } }
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -166,6 +180,6 @@ svg { display: block; width: 100%; height: auto; }
   .terrain-progress { transform: scaleX(0); }
   .machine--cargo { opacity: 1; transform: translate(483px, 137px); }
   .machine--scout { opacity: 1; transform: translate(812px, 143px) scale(.75); }
-  .sand-stream, .dust, .mud-splash { opacity: 0; }
+  .sand-discharge, .sand-stream, .dust, .mud-splash { opacity: 0; }
 }
 </style>

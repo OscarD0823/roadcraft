@@ -790,6 +790,9 @@ button { cursor: pointer; }
   &__wide { grid-column: 1 / -1; }
 }
 
+.paint-swatches { display:flex;gap:4px;flex:none; }
+.paint-swatches i { display:block;width:18px;height:18px;border:1px solid #17304140;border-radius:4px; }
+
 .save-panel-toolbar {
   display: flex;
   align-items: center;

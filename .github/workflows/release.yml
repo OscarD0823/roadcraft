@@ -33,6 +33,9 @@ jobs:
       - name: Validar ensamblado y maquinaria fija
         run: npm run test:appearance
 
+      - name: Validar pintura de empresa y conservación de partidas
+        run: npm run test:paint
+
       - name: Validar convoyes logísticos
         run: npm run test:logistics
 

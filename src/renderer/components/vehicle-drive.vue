@@ -17,6 +17,7 @@
       </div>
     </div>
     <p>{{ t(showCover ? 'coverNot3d' : state === 'ready' ? 'originalSourceModel' : state === 'loading' ? 'loadingModel' : 'modelUnavailable') }}</p>
+    <small v-if="companyPaint && state === 'ready' && !showCover" class="company-paint-note"><i v-for="(color,i) in companyPaint.colors" :key="i" :style="{background:`rgb(${color.join(',')})`}" />{{ t(paintPartial ? 'companyPaintPartial' : 'companyPaintApplied') }}</small>
     <small class="preview-note" :title="t('viewOnly')">{{ t('viewOnly') }}</small>
   </section>
 </template>
@@ -26,15 +27,16 @@ import * as THREE from 'three'
 import { FBXLoader } from 'three/addons/loaders/FBXLoader.js'
 import { TGALoader } from 'three/addons/loaders/TGALoader.js'
 import { DDSLoader } from 'three/addons/loaders/DDSLoader.js'
-import type { ContentEntry } from '../../shared'
+import type { CompanyPaint, ContentEntry } from '../../shared'
 import { DrivingStage, type Terrain } from '../driving-stage'
-import { fbxMetersScale, exteriorMesh, mountSourceWheel, configureRoadShading, configureRoadPaint } from '../source-model'
+import { fbxMetersScale, exteriorMesh, mountSourceWheel, configureRoadShading, configureRoadPaint, materialPaint } from '../source-model'
 import { visibleVehicleBounds } from '../vehicle-framing'
-const props = defineProps<{ entry: ContentEntry; t: (key: string) => string }>()
+const props = defineProps<{ entry: ContentEntry; companyPaint?: CompanyPaint; t: (key: string) => string }>()
 const host = ref<HTMLElement>(), state = ref('loading'), terrain = ref<Terrain>('auto')
 const moving = ref(!matchMedia('(prefers-reduced-motion: reduce)').matches)
 const imageFailed = ref(false)
 const showCover = ref(false)
+const paintPartial = ref(false)
 let stage: DrivingStage | undefined, disposed = false
 const pendingModels = new Set<THREE.Object3D>(), loadedTextures = new Set<THREE.Texture>()
 const EMPTY_TEXTURE = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4//8/AwAI/AL+X2NDNwAAAABJRU5ErkJggg=='
@@ -45,9 +47,11 @@ onMounted(async () => {
     stage = new DrivingStage(host.value!, true)
     stage.canTravel = !props.entry.mobility || props.entry.mobility === 'road'
     if (!stage.canTravel) { moving.value=false; terrain.value='construction';stage.terrain='construction' }
-    const asset = await window.roadcraft.getPreview(props.entry.id)
+    const asset = await window.roadcraft.getPreview(props.entry.id,props.companyPaint?.id)
     if (disposed) return
     if (!asset) { state.value = 'cover'; return }
+    paintPartial.value=asset.paintPartial || !Object.values(asset.materials).some(m=>m.paintable)
+    Object.assign(host.value!.dataset,{paintMaterial:asset.paint?.id??'',paintSource:asset.paintSource??'original',paintMasks:String(Object.values(asset.materials).filter(m=>m.customizationMask).length)})
     const manager = new THREE.LoadingManager()
     manager.addHandler(/\.tga$/i, new TGALoader(manager)); manager.addHandler(/\.dds$/i, new DDSLoader(manager))
     manager.setURLModifier(url => {
@@ -99,8 +103,10 @@ onMounted(async () => {
           if (def?.albedo) { m.map = await getTexture(def.albedo, true); m.color.set(0xffffff) }
           if (def?.normal) { m.normalMap = await getTexture(def.normal, false); m.normalScale.set(1, -1) }
           if (def?.shading) configureRoadShading(m, await getTexture(def.shading, false))
-          const tint=def?.paintable && asset!.paintColor ? asset!.paintColor : def?.tint
-          if(tint && m.map)configureRoadPaint(m,{tint,tintG:def?.tintG,mask:def?.tintMask?await getTexture(def.tintMask,false):undefined,albedoAlpha:def?.maskFromAlbedoAlpha})
+          const paint=materialPaint(def,asset!.paint)
+          const tint=paint && !def?.customizationMask ? paint.colors[0] : def?.tint ?? (paint ? [255,255,255] : undefined)
+          if(tint && m.map)configureRoadPaint(m,{tint,tintG:def?.tintG,mask:def?.tintMask?await getTexture(def.tintMask,false):undefined,albedoAlpha:def?.maskFromAlbedoAlpha,
+            paint:paint?{colors:paint.colors,mask:def?.customizationMask?await getTexture(def.customizationMask,false):undefined}:undefined})
           if (def?.emissive) { m.emissiveMap = await getTexture(def.emissive, true); m.emissive.set(0xffffff); m.emissiveIntensity = .5 }
           if (def?.transparent) { m.transparent = true; m.depthWrite = false; if (asset!.format === 'tpl') { m.opacity = .4; m.color.set(0x9cbdc9) } }
           if (/alphakill/i.test(def?.type ?? '')) m.alphaTest = .4
@@ -171,6 +177,8 @@ button, select { font: inherit; min-width: 0; max-width: 145px; padding: 4px 7px
 .drive-cover--moving img { animation: drive-bob 2s ease-in-out infinite alternate; }
 p { margin: 0; padding: 9px 12px 4px; font-size: 11px; }
 small { display: block; padding: 0 12px 11px; font-size: 10px; color: #93aab7; }
+.company-paint-note { display:flex;align-items:center;flex-wrap:wrap;gap:4px; }
+.company-paint-note i { width:12px;height:12px;border:1px solid #ffffff50;border-radius:3px;flex:none; }
 @container (max-width: 260px) { .drive-tools { gap: 5px; padding: 7px; } .drive-tools select { flex: 1 0 100%; max-width: 100%; } p, small { padding-inline: 8px; font-size: 10px; } p { padding-bottom: 9px; } .preview-note { display: none; } }
 @keyframes drive-bob { to { transform: translateY(2px) rotate(.2deg); } }
 @media (prefers-reduced-motion: reduce) { .drive-cover img { animation: none; } }

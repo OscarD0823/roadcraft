@@ -8,7 +8,7 @@
           <span>v{{ appVersion }}</span>
         </div>
       </div>
-      <StartupJourney loop class="workspace-journey" />
+      <StartupJourney loop :paint="companyPaint" class="workspace-journey" />
       <div class="topbar__actions">
         <label class="language-select" :title="t('language')">
           <span>🌐</span>
@@ -135,7 +135,7 @@
         </div>
         <div class="editor-workspace">
           <section class="vehicle-preview" :aria-label="t('vehicleView')">
-            <VehicleDrive :key="selectedEntry.id" :entry="selectedEntry" :t="t" />
+            <VehicleDrive :key="`${selectedEntry.id}:${companyPaint?.id ?? 'original'}`" :entry="selectedEntry" :company-paint="companyPaint" :t="t" />
             <div class="file-actions">
               <button @click="chooseImage">🖼 {{ t('chooseImage') }}</button>
               <button @click="openFile">📄 {{ t('openFile') }}</button>
@@ -299,6 +299,10 @@
 
           <div class="save-editor__body">
             <section v-if="saveSection === 'stats'" class="save-stats-panel">
+              <div class="save-notice company-paint-info" :data-paint="companyPaint?.id ?? ''">
+                <span v-if="companyPaint" class="paint-swatches"><i v-for="(color,i) in companyPaint.colors" :key="i" :style="{ background: `rgb(${color.join(',')})` }" /></span>
+                <div><strong>{{ t('companyPaintTitle') }}</strong><p>{{ t(companyPaint ? 'companyPaintHelp' : 'companyPaintMissing') }}</p></div>
+              </div>
               <div class="save-notice">
                 <span>🛡</span>
                 <div><strong>{{ t('automaticBackup') }}</strong><p>{{ t('automaticBackupHelp') }}</p></div>
@@ -387,8 +391,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
-import type { ContentEntry, ContentKind, EditableParameter, ParameterValue, SaveGameData, SaveSlotSummary, ScanResult } from '../shared'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
+import type { CompanyPaint, ContentEntry, ContentKind, EditableParameter, ParameterValue, SaveGameData, SaveSlotSummary, ScanResult } from '../shared'
 import { entryInSection } from '../shared'
 import { locales, translate } from './i18n'
 import StartupJourney from './components/startup-journey.vue'
@@ -411,6 +415,17 @@ const activeParameterGroup = ref('engine')
 const toast = ref<{ type: 'success' | 'error'; message: string }>()
 const saveSlots = ref<SaveSlotSummary[]>([])
 const saveDraft = ref<SaveGameData>()
+const companyPaint = ref<CompanyPaint>()
+let paintRequest = 0
+watch(() => saveDraft.value?.companyCustomization?.truckMaterialName, async material => {
+  const request = ++paintRequest
+  companyPaint.value = undefined
+  if (!material) return
+  try {
+    const paint = await window.roadcraft.getCompanyPaint(material)
+    if (request === paintRequest) companyPaint.value = paint
+  } catch { /* Missing game/library must not prevent reading a valid save. */ }
+})
 const saveLoading = ref(false)
 const saveWriting = ref(false)
 const saveSection = ref<SaveSection>('stats')

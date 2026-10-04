@@ -54,7 +54,8 @@ if (squirrelStartup) {
 }
 
 function registerHandlers(service: RoadCraftService) {
-  ipcMain.handle('roadcraft:get-preview', (_event, id: string) => service.getPreview(id))
+  ipcMain.handle('roadcraft:get-preview', (_event, id: string, companyMaterial?: string) => service.getPreview(id, companyMaterial))
+  ipcMain.handle('roadcraft:get-company-paint', (_event, material: string) => service.getCompanyPaint(material))
   ipcMain.handle('roadcraft:get-settings', () => service.getSettings())
   ipcMain.handle('roadcraft:scan', () => service.scan())
   ipcMain.handle('roadcraft:choose-install', () => service.chooseInstall())

@@ -1,10 +1,21 @@
 # RoadCraft Studio
 
-## Versión 0.8.5
+## Versión 0.8.6
+
+- Lee la pintura de empresa de `SslValue.companyCustomization.truckMaterialName` en la partida seleccionada. Usa la biblioteca original `auto_materials_library.sso` y sus tres canales de color, no la tabla distinta de daño/suciedad.
+- Usa las máscaras locales de pintura en el visor 3D y sus colores en las máquinas ilustradas del logo. Conserva los materiales sin máscara compatible y avisa de compatibilidad parcial. No reproduce los emblemas/grafitis ni modifica la partida para pintar.
+- El primer volquete sale del logo cargado y regresa descargando en reversa. La excavadora de orugas sale, trabaja y vuelve al logo; el segundo camión descarga hacia delante, seguido de excavadora, asfaltadora, aplanadora, camión final y salida del explorador.
+- Ciclo de 54 segundos con piedras, barro y desniveles; mantiene el visor lateral y respeta movimiento reducido.
+
+La partida Steam normalmente está en `%LOCALAPPDATA%\Saber\RoadCraftGame\storage\steam\user\<perfil>\Main\save\SLOT_<n>\CompleteSave`. El editor busca bajo Saber y Saber Interactive, carga el guardado local más reciente al iniciar y permite escoger otro slot en Partidas. Si no existe un guardado local, no inventa una pintura: conserva el aspecto original. Abre el juego, guarda una partida y pulsa «Buscar partidas»; también puedes abrir CompleteSave manualmente. Un registro de Steam Cloud no equivale al archivo de partida.
+
+### Animación de 0.8.5
 
 - El explorador del logo cruza piedras, barro y desniveles, con inclinación y salpicaduras, y espera a que termine la obra antes de salir.
 - Secuencia de carretera: volquete de orugas en reversa descargando arena, niveladora, segundo camión de arena en reversa, segunda pasada de niveladora, asfaltadora, aplanadora y camión final.
 - La superficie se transforma detrás de cada máquina, conserva las dos capas de arena y se reinicia en un ciclo de 42 segundos. Respeta la preferencia de movimiento reducido de Windows.
+
+Esta secuencia fue sustituida por la de 0.8.6 descrita arriba.
 
 ### Mejoras de 0.8.4
 

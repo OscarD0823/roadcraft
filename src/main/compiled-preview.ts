@@ -13,7 +13,8 @@ import { readMatchingTextEntries } from './zip-package'
 import { objectBody, arrayObjects } from './source-blocks'
 import { wrapTrackStrip, orientTrackStrip } from './track-geometry'
 import { nativeWheelMount } from './wheel-mount'
-import type { PreviewMaterial, VehiclePreviewAsset } from '../shared'
+import type { CompanyPaint, PreviewMaterial, VehiclePreviewAsset } from '../shared'
+import { readCompanyPaintLibrary } from './company-paint'
 
 interface Location { path: string; entry: string; metadata: Entry }
 interface Descriptor { width: number; height: number; format: number; mips: string[] }
@@ -29,7 +30,8 @@ export class CompiledPreviewStore {
   private descriptors = new Map<string, Descriptor>()
   private textureDefinitions = new Map<string,string>()
   private definitionLocations = new Map<string,Location>()
-  private paintPresets: number[][] = []
+  private paints = new Map<string, CompanyPaint>()
+  private paintsPrepared?: Promise<void>
   private prepared?: Promise<void>
   private previews = new Map<string, Promise<VehiclePreviewAsset | undefined>>()
   constructor(private readonly installPath: string, private readonly cacheRoot: string) {}
@@ -56,12 +58,12 @@ export class CompiledPreviewStore {
     const definitionsPath=join(root,'default_td.pak'), definitions=await openPromise(definitionsPath,{lazyEntries:true,strictFileNames:true,validateEntrySizes:true})
     try {for await(const entry of definitions.eachEntry())if(/^td\/[^/]+\.td$/i.test(entry.fileName)&&entry.uncompressedSize<1024*1024)this.definitionLocations.set(basename(entry.fileName,'.td').toLowerCase(),{path:definitionsPath,entry:entry.fileName,metadata:entry})}
     finally {if(definitions.isOpen)definitions.close()}
-    const [paintLibrary]=await readMatchingTextEntries(join(root,'default_other.pak'),n=>n.endsWith('/material_customization_presets_library.sso'))
-    this.paintPresets=paintLibrary ? arrayObjects(paintLibrary.content,'presets').map(raw=>{
-      const tint=objectBody(objectBody(raw,'preset'),'tint')
-      return ['r','g','b'].map(c=>Number(new RegExp(`\\b${c}\\s*=\\s*(\\d+)`).exec(tint)?.[1]??255))
-    }) : []
     await mkdir(this.cacheRoot, { recursive: true })
+  }
+  private async preparePaints() {
+    const path=join(this.installPath,'root/paks/client/default/default_other.pak')
+    const [library]=await readMatchingTextEntries(path,n=>n.endsWith('/autogen_designer_wizard/materials/auto_materials_library.sso'))
+    this.paints=library ? readCompanyPaintLibrary(library.content) : new Map()
   }
   private async load(location?: Location) {
     if (!location) return
@@ -121,9 +123,24 @@ export class CompiledPreviewStore {
     return this.textureDefinitions.get(key)!
   }
   async paintColor(material?:string) {
-    this.prepared ??= this.prepare(); await this.prepared
-    const index=/^customization_material_(\d+)$/.exec(material??'')?.[1]
-    return index ? this.paintPresets[Number(index)] : undefined
+    return (await this.paintProfile(material))?.colors[0]
+  }
+  async paintProfile(material?:string) {
+    if(typeof material!=='string')return
+    // The logo can read company colours without indexing every model/texture.
+    this.paintsPrepared ??= this.preparePaints(); await this.paintsPrepared
+    return this.paints.get(material)
+  }
+  async withPaint(asset:VehiclePreviewAsset, paint?:CompanyPaint, company=false):Promise<VehiclePreviewAsset> {
+    if(!paint)return asset
+    const materials:Record<string,PreviewMaterial>={};let partial=!Object.values(asset.materials).some(m=>m.paintable)
+    for(const [key,definition] of Object.entries(asset.materials)){
+      const mask=definition.paintable ? definition.customizationMasks?.[paint.materialName] : undefined
+      const customizationMask=mask ? ['.tga','.dds','.png','.jpg','.jpeg'].map(ext=>asset.textures[mask.toLowerCase()+ext]).find(Boolean) ?? await this.texture(mask) : undefined
+      if(definition.paintable && paint.isLivery && !customizationMask)partial=true
+      materials[key]={...definition,customizationMask}
+    }
+    return {...asset,materials,paint,paintColor:paint.colors[0],paintSource:company?'company':'original',paintPartial:partial}
   }
   get(name: string, sourceDirectory?: string, wheels: WheelSlot[] = [], tracks:TrackLoop[] = []) {
     if (!/^[a-z0-9_-]{1,150}$/i.test(name)) return Promise.resolve(undefined)
@@ -156,12 +173,22 @@ export class CompiledPreviewStore {
       material.name = materialKey
       materials[materialKey] = { ...(maps.get(surface.texture) ?? { type: 'original', transparent: false }),
         type: /decal/i.test(surface.name) ? 'decal' : /glass/i.test(surface.material) ? 'glass' : 'original', transparent: /glass/i.test(surface.material) }
-      const td=objectBody(objectBody(await this.textureDefinition(surface.texture),'materials'),String(metadata.splits.find(s=>s.material?.mayaMtl===surface.material)?.material?.shadingMtl_Mtl??'default'))
+      const regions=objectBody(await this.textureDefinition(surface.texture),'materials')
+      const td=objectBody(regions,String(metadata.splits.find(s=>s.material?.mayaMtl===surface.material)?.material?.shadingMtl_Mtl??'default'))
       const tint=objectBody(td,'tintByMask'), customization=objectBody(td,'customization')
       const color=(field:string)=>new RegExp(`\\b${field}\\s*=\\s*\\[([^\\]]*)\\]`).exec(tint)?.[1].match(/\d+/g)?.map(Number).slice(1,4)
       const mask=/\btintMask\s*=\s*"([a-z0-9_-]+)"/i.exec(tint)?.[1]
       Object.assign(materials[materialKey],{tint:color('albedo'),tintG:color('albedoG'),tintMask:mask?await this.texture(mask):undefined,
         maskFromAlbedoAlpha:/maskFromAlbedoAlpha\s*=\s*true/i.test(tint),paintable:/tintBlendMode\s*=\s*"linear_blend"/i.test(objectBody(customization,'layer0'))})
+      if(materials[materialKey].paintable){
+        const customizationMasks:Record<string,string>={}
+        for(const variant of ['default_cc','default_02_cc','default_03_cc','default_04_cc']){
+          const settings=objectBody(objectBody(regions,variant),'customization')
+          const texture=/\bmask\s*=\s*"([a-z0-9_-]+)"/i.exec(settings)?.[1]
+          if(texture)customizationMasks[variant]=texture
+        }
+        materials[materialKey].customizationMasks=customizationMasks
+      }
       const mesh = new THREE.Mesh(geometry, material); mesh.name = surface.name; model.add(mesh)
     }
     const wheelVersions: string[] = []

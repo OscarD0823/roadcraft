@@ -1,4 +1,11 @@
 import * as THREE from 'three'
+import type { CompanyPaint, PreviewMaterial } from '../shared'
+
+/** An unsupported patterned part must keep its factory material, not a colour wash. */
+export function materialPaint(definition?:PreviewMaterial,paint?:CompanyPaint) {
+  if(!definition?.paintable || !paint)return
+  if(definition.customizationMask || !paint.isLivery && (definition.tintMask || definition.maskFromAlbedoAlpha))return paint
+}
 
 /** Combine the FBX units with the SDK's explicit FBX import scale. */
 export function fbxMetersScale(model: THREE.Object3D) {
@@ -50,7 +57,7 @@ export function configureRoadShading(material: THREE.MeshStandardMaterial, textu
 }
 
 /** Preserve unpainted areas; native material tinting uses a mask, not an overall color wash. */
-export function configureRoadPaint(material: THREE.MeshStandardMaterial, options: {mask?:THREE.Texture; tint:number[]; tintG?:number[]; albedoAlpha?:boolean}) {
+export function configureRoadPaint(material: THREE.MeshStandardMaterial, options: {mask?:THREE.Texture; tint:number[]; tintG?:number[]; albedoAlpha?:boolean; paint?:{colors:number[][];mask?:THREE.Texture}}) {
   const prior = material.onBeforeCompile.bind(material), priorKey = material.customProgramCacheKey()
   const color=(rgb:number[])=>new THREE.Color().setRGB(rgb[0]/255,rgb[1]/255,rgb[2]/255,THREE.SRGBColorSpace)
   material.onBeforeCompile=(shader,renderer)=>{
@@ -59,8 +66,17 @@ export function configureRoadPaint(material: THREE.MeshStandardMaterial, options
     shader.uniforms.roadPaintTintG={value:color(options.tintG??[255,255,255])}
     if(options.mask)shader.uniforms.roadPaintMask={value:options.mask}
     shader.fragmentShader='uniform vec3 roadPaintTint;\nuniform vec3 roadPaintTintG;\n'+(options.mask?'uniform sampler2D roadPaintMask;\n':'')+shader.fragmentShader
+    if(options.paint?.mask){
+      for(const i of [0,1,2])shader.uniforms['roadCompanyColor'+i]={value:color(options.paint.colors[i])}
+      shader.uniforms.roadCompanyMask={value:options.paint.mask}
+      shader.fragmentShader='uniform sampler2D roadCompanyMask;\nuniform vec3 roadCompanyColor0;\nuniform vec3 roadCompanyColor1;\nuniform vec3 roadCompanyColor2;\n'+shader.fragmentShader
+    }
     const weight=options.mask?'texture2D(roadPaintMask,vMapUv).rgb':'vec3('+ (options.albedoAlpha?'sampledDiffuseColor.a':'0.0') +',0.0,0.0)'
-    shader.fragmentShader=shader.fragmentShader.replace('#include <map_fragment>', THREE.ShaderChunk.map_fragment+`\n#ifdef USE_MAP\nvec3 roadPaintWeights=${weight};\ndiffuseColor.rgb=mix(diffuseColor.rgb,roadPaintTint,roadPaintWeights.r);\ndiffuseColor.rgb=mix(diffuseColor.rgb,roadPaintTintG,roadPaintWeights.g);\n#endif\n`)
+    const company=options.paint?.mask ? `vec3 roadCompanyWeights=clamp(texture2D(roadCompanyMask,vMapUv).rgb,0.0,1.0);
+float roadCompanyCoverage=dot(roadCompanyWeights,vec3(1.0));
+vec3 roadCompanyTint=(roadCompanyWeights.r*roadCompanyColor0+roadCompanyWeights.g*roadCompanyColor1+roadCompanyWeights.b*roadCompanyColor2)/max(roadCompanyCoverage,0.00001);
+diffuseColor.rgb=mix(diffuseColor.rgb,roadCompanyTint,min(roadCompanyCoverage,1.0));` : ''
+    shader.fragmentShader=shader.fragmentShader.replace('#include <map_fragment>', THREE.ShaderChunk.map_fragment+`\n#ifdef USE_MAP\nvec3 roadPaintWeights=${weight};\ndiffuseColor.rgb=mix(diffuseColor.rgb,roadPaintTint,roadPaintWeights.r);\ndiffuseColor.rgb=mix(diffuseColor.rgb,roadPaintTintG,roadPaintWeights.g);\n${company}\n#endif\n`)
   }
-  material.customProgramCacheKey=()=>priorKey+':road-paint-v1:'+!!options.mask+':'+!!options.albedoAlpha
+  material.customProgramCacheKey=()=>priorKey+':road-paint-v2:'+!!options.mask+':'+!!options.albedoAlpha+':'+!!options.paint?.mask
 }

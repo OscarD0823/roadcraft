@@ -381,7 +381,11 @@ export class RoadCraftService {
     await this.persistSettings()
   }
 
-  async getPreview(id: string): Promise<VehiclePreviewAsset | undefined> {
+  async getCompanyPaint(material: string) {
+    return this.compiledPreviews().paintProfile(material)
+  }
+
+  async getPreview(id: string, companyMaterial?: string): Promise<VehiclePreviewAsset | undefined> {
     const item = this.catalog.get(id)
     if (!item) return
     if (item.sourceType === 'pak') {
@@ -393,7 +397,9 @@ export class RoadCraftService {
       const assembly = previewAssembly(source, wheels)
       const asset = await this.compiledPreviews().get(name, undefined, assembly.wheels, assembly.tracks)
       const material = this.readStringValue(source, ['properties','prop_customization_materials'],'defaultMaterial')
-      return asset ? { ...asset, paintColor: await this.compiledPreviews().paintColor(material) } : undefined
+      const company=await this.compiledPreviews().paintProfile(companyMaterial)
+      const paint=company ?? await this.compiledPreviews().paintProfile(material)
+      return asset ? this.compiledPreviews().withPaint(asset,paint,!!company) : undefined
     }
     const root = join(this.settings.installPath, 'root', 'mods_source')
     const source = await readFile(item.sourcePath, 'utf8')
@@ -438,6 +444,18 @@ export class RoadCraftService {
         const emissive = /(?:texEm|emissive)\s*=\s*"([a-z0-9_-]+)"/i.exec(definition)?.[1]
         const type = /__type\s*=\s*"([a-z0-9_-]+)"/i.exec(definition)?.[1] ?? ''
         materials[match[1]] = { albedo: textureUrl(albedo), normal: textureUrl(normal), shading: textureUrl(shading), emissive: textureUrl(emissive), type, transparent: /glass|transparent/i.test(type) }
+        // SDK source exports may omit the customization wrapper. Only enable
+        // paint when their actual named CC mask exists; never tint glass/tyres.
+        const cc = albedo && textureUrl(albedo + '_cc')
+        if (cc && !/glass|transparent|tire/i.test(type + ' ' + match[1])) {
+          const prefixes = [...new Set([albedo!.replace(/_\d+(?=_(?:new|old)$|$)/,''),albedo!.replace(/_\d+(?:_new|_old)?$/,'')])]
+          const customizationMasks: Record<string,string> = {}
+          for (const [variant,suffix] of [['default_cc','01'],['default_02_cc','02'],['default_03_cc','03'],['default_04_cc','04']]) {
+            const mask = prefixes.map(prefix=>prefix+'_livery_'+suffix+'_cc').find(name=>textureUrl(name))
+            if (mask) customizationMasks[variant] = mask
+          }
+          Object.assign(materials[match[1]], { paintable:true, tintMask:cc, customizationMasks })
+        }
       }
     }
     const scale = this.readParameterValue(source,{id:'scale',path:['wheelPool','Wheel'],field:'scale',labelKey:'',groupKey:''})
@@ -449,9 +467,13 @@ export class RoadCraftService {
         return frame ? [{ frame, model: wheelRef!, directory: wheelDirectory, scale: typeof scale === 'number' ? scale : 1, right: /isRightSided\s*=\s*True/i.test(slot) }] : []
       }) : []
       const compiled = existsSync(join(directory, ref + '.tpl')) ? await this.compiledPreviews().get(ref, directory, slots) : undefined
-      return compiled ? { ...compiled, textures, materials: { ...compiled.materials, ...materials } } : undefined
+      const asset=compiled ? { ...compiled, textures, materials: { ...compiled.materials, ...materials } } : undefined
+      const paint=await this.compiledPreviews().paintProfile(companyMaterial)
+      return asset ? this.compiledPreviews().withPaint(asset,paint,!!paint) : undefined
     }
-    return { modelUrl: pathToFileURL(fbx).href, textures, materials, modelImportScale: await importScale(ref), wheelImportScale: await importScale(wheelRef), wheelScale: typeof scale==='number' && scale>0 && scale<=10 ? scale : 1, wheelUrl: wheel && existsSync(wheel) ? pathToFileURL(wheel).href : undefined }
+    const asset={ modelUrl: pathToFileURL(fbx).href, textures, materials, modelImportScale: await importScale(ref), wheelImportScale: await importScale(wheelRef), wheelScale: typeof scale==='number' && scale>0 && scale<=10 ? scale : 1, wheelUrl: wheel && existsSync(wheel) ? pathToFileURL(wheel).href : undefined }
+    const paint=await this.compiledPreviews().paintProfile(companyMaterial)
+    return this.compiledPreviews().withPaint(asset,paint,!!paint)
   }
 
   private previewStore?: { path: string; store: CompiledPreviewStore }

@@ -110,7 +110,8 @@ async function main() {
       if(cls.includes('dragline'))assert.equal(tracks,4,'Tracks or chains missing')
       console.log(cls, {wheels:assembly.wheels.length,tracks,size:size.toArray(),mobility:previewMobility(entry.content)})
     }
-    assert.deepEqual(await store.paintColor('customization_material_00'),[15,47,90])
+    assert.deepEqual(await store.paintColor('customization_material_00'),[89,33,41])
+    assert.deepEqual((await store.paintProfile('customization_material_28'))?.colors,[[43,115,200],[78,75,82],[233,233,233]])
     console.log('Stationary/rail configurations:',stationary.length)
   } finally {if(!shared)await rm(temporary,{recursive:true,force:true})}
 }
