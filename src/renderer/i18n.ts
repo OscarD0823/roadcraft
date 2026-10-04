@@ -17,6 +17,7 @@ export const locales = [
 ]
 
 const en: Record<string, string> = {
+  projectLinks: 'Author and project on GitHub', githubAuthor: 'Open @OscarD0823 on GitHub', githubRepository: 'Open the RoadCraft Studio repository on GitHub',
   companyPaintTitle: 'Company paint · preview only', companyPaintHelp: 'Colours and native paint masks from the selected save are used in the 3D view; the logo uses these colours in its illustration. This does not change the game or save. Company decals are not reproduced.',
   companyPaintMissing: 'No supported company paint was found in this save or local material library. The original appearance is retained.', companyPaintApplied: 'Company paint · local preview', companyPaintPartial: 'Company paint partially supported · original materials retained where no compatible mask exists',
   mobility_stationary: 'Stationary equipment', mobility_rail: 'Rail-mounted equipment', modelUnavailable: 'No compatible 3D model. The original cover is available separately.',
@@ -79,6 +80,7 @@ const en: Record<string, string> = {
 
 const es: Record<string, string> = {
   ...en,
+  projectLinks: 'Autor y proyecto en GitHub', githubAuthor: 'Abrir el perfil de @OscarD0823 en GitHub', githubRepository: 'Abrir el repositorio de RoadCraft Studio en GitHub',
   companyPaintTitle: 'Pintura de la empresa · solo vista previa', companyPaintHelp: 'Los colores y las máscaras originales de la partida seleccionada se usan en el visor 3D; el logo usa esos colores en su ilustración. No cambia el juego ni la partida. Los emblemas de empresa no se reproducen.',
   companyPaintMissing: 'No se encontró una pintura de empresa compatible en esta partida o en la biblioteca local. Se conserva el aspecto original.', companyPaintApplied: 'Pintura de empresa · vista previa local', companyPaintPartial: 'Pintura parcialmente compatible · se conservan los materiales sin máscara compatible',
   mobility_stationary: 'Maquinaria fija', mobility_rail: 'Maquinaria sobre rieles', modelUnavailable: 'Sin modelo 3D compatible. La carátula original está disponible por separado.',

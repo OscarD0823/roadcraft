@@ -84,6 +84,13 @@ button { cursor: pointer; }
   overflow-x: auto;
 }
 
+.project-links { display:flex;align-items:center;gap:9px;margin-top:2px;white-space:nowrap; }
+.project-links a { display:inline-flex;align-items:center;gap:4px;min-height:24px;font-size:11px;text-decoration:none;color:#b5c8dd;border-radius:4px; }
+.project-links a:hover { color:#ffb46e;text-decoration:underline; }
+.project-links a:focus-visible { outline:2px solid #ffb46e;outline-offset:2px;color:#fff; }
+.project-links svg { width:13px;height:13px;flex:none; }
+.project-version { color:#91a2ba;font-size:10px; }
+
 .nav-button {
   display: flex;
   flex: 0 0 auto;
@@ -864,7 +871,8 @@ button { cursor: pointer; }
 
 @media (max-width: 1120px) {
   .brand { min-width: auto; }
-  .brand > div { display: none; }
+  .brand__copy > strong, .project-version { display: none; }
+  .project-links { margin:0;gap:7px; }
   .nav-button > span:not(.nav-button__icon) { display: none; }
   .language-select select { max-width: 120px; }
   .workspace-nav { gap: 8px; padding-inline: 12px; }

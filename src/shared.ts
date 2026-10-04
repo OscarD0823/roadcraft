@@ -180,6 +180,7 @@ export interface VehiclePreviewAsset {
 }
 
 export interface RoadCraftApi {
+  openProjectLink(link: import('./project-links').ProjectLink): Promise<void>
   getPreview(id: string, companyMaterial?: string): Promise<VehiclePreviewAsset | undefined>
   getCompanyPaint(material: string): Promise<CompanyPaint | undefined>
   getSettings(): Promise<{ installPath: string; locale: string; version: string }>

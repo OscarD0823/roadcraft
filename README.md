@@ -1,6 +1,11 @@
 # RoadCraft Studio
 
-## Versión 0.8.6
+## Versión 0.8.7
+
+- Identificador `@OscarD0823` en la cabecera, enlazado al perfil de GitHub, y acceso «Repo» al repositorio de RoadCraft Studio.
+- Ambos enlaces permanecen visibles al dividir la pantalla, admiten foco de teclado y abren el navegador predeterminado, sin sustituir la ventana del editor.
+
+### Pintura y animación de 0.8.6
 
 - Lee la pintura de empresa de `SslValue.companyCustomization.truckMaterialName` en la partida seleccionada. Usa la biblioteca original `auto_materials_library.sso` y sus tres canales de color, no la tabla distinta de daño/suciedad.
 - Usa las máscaras locales de pintura en el visor 3D y sus colores en las máquinas ilustradas del logo. Conserva los materiales sin máscara compatible y avisa de compatibilidad parcial. No reproduce los emblemas/grafitis ni modifica la partida para pintar.

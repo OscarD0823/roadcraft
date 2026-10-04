@@ -1,4 +1,5 @@
-import { app, BrowserWindow, ipcMain } from 'electron'
+import { app, BrowserWindow, ipcMain, shell } from 'electron'
+import { projectLinkUrl } from '../project-links'
 import squirrelStartup from 'electron-squirrel-startup'
 import { UpdateSourceType, updateElectronApp } from 'update-electron-app'
 import { dirname, join, resolve } from 'node:path'
@@ -54,6 +55,7 @@ if (squirrelStartup) {
 }
 
 function registerHandlers(service: RoadCraftService) {
+  ipcMain.handle('roadcraft:open-project-link', (_event, link: unknown) => shell.openExternal(projectLinkUrl(link)))
   ipcMain.handle('roadcraft:get-preview', (_event, id: string, companyMaterial?: string) => service.getPreview(id, companyMaterial))
   ipcMain.handle('roadcraft:get-company-paint', (_event, material: string) => service.getCompanyPaint(material))
   ipcMain.handle('roadcraft:get-settings', () => service.getSettings())

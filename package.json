@@ -1,7 +1,7 @@
 {
   "name": "roadcraft-studio",
   "productName": "RoadCraft Studio",
-  "version": "0.8.6",
+  "version": "0.8.7",
   "description": "Editor visual y seguro para vehículos, tráilers, convoyes logísticos y partidas de RoadCraft.",
   "main": ".vite/build/index.js",
   "author": {
@@ -25,6 +25,8 @@
     "test:appearance": "tsx scripts/test-appearance.ts",
     "test:paint": "tsx scripts/test-company-paint.ts && tsx scripts/test-save-game.ts",
     "test:paint-ui": "cross-env ROADCRAFT_COMPANY_FIXTURE=1 node scripts/test-view-ui.mjs",
+    "test:links": "tsx scripts/test-project-link-targets.ts",
+    "test:links-ui": "cross-env ROADCRAFT_LINKS_ONLY=1 node scripts/test-view-ui.mjs",
     "test:logistics": "tsx scripts/test-logistics.ts",
     "test:sand": "esbuild scripts/test-sand-capacity.ts --bundle --platform=node --format=cjs --external:electron --outfile=.vite/test-sand-capacity.cjs && electron .vite/test-sand-capacity.cjs",
     "test:full-package": "tsx scripts/test-full-package.ts",
