@@ -28,7 +28,11 @@ model.traverse(object => {
   if (object instanceof THREE.Mesh) { object.visible = exteriorMesh(object.name); if(object.visible)meshes.push(object.name) }
   if (/^wheel_\d+_(left|right)$/i.test(object.name)) slots.push(object)
 })
-for (const slot of slots) mountSourceWheel(model,wheel,slot,.67)
+for (const slot of slots) {
+  const mounted=mountSourceWheel(model,wheel,slot,.67)
+  assert(Math.abs(new THREE.Vector3(1,0,0).applyQuaternion(mounted.getWorldQuaternion(new THREE.Quaternion())).x)>.9999,'Source wheel axle is not transverse')
+}
+console.log('FBX source axles checked:',slots.length)
 model.scale.multiplyScalar(fbxMetersScale(model))
 const bounds = visibleVehicleBounds(model), size = bounds.getSize(new THREE.Vector3())
 assert.ok(size.toArray().every(n=>Number.isFinite(n) && n>.5 && n<30), 'Unrealistic source model scale')

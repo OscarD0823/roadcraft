@@ -84,6 +84,23 @@ async function main() {
   assert(widthSpec)
   const changedBowhead = service.replaceParameterValue(bowheadSource, widthSpec, 1000)
   assert.match(changedBowhead, /prop_road_plan_worker\s*=\s*\{[\s\S]*?loadVolumeSettings\s*=\s*\{[\s\S]*?radius\s*=\s*500/m)
+  const capacity=bowhead.parameters.find(item=>item.id==='sandCapacity')
+  assert.equal(capacity?.value,20,'20,000 kg must display as 20 tonnes')
+  assert.equal(capacity?.minimum,15);assert.equal(capacity?.maximum,25)
+  const capacitySpec=bowhead.specMap.get('sandCapacity')!
+  const loadedBowhead=service.replaceParameterValue(bowheadSource,capacitySpec,24)
+  assert.match(loadedBowhead,/volumeMass\s*=\s*24000/)
+  assert.equal(loadedBowhead,bowheadSource.replace(/(volumeMass\s*=\s*)20000/,'$124000'),'Only the load mass may change')
+  assert(!zikz.parameters.some(item=>item.id==='sandCapacity'),'A sand scalper does not have a dump bed')
+  for(const [id,tonnes] of [
+    ['auto_baikal_65206_heavy_dumptruck_old',40],['auto_baikal_65206_heavy_dumptruck_res',40],
+    ['auto_epec_lt200_dumptruck_new',5],['auto_tayga_6455b_dumptruck_old',10],
+    ['auto_tayga_6455b_dumptruck_res',10],['auto_voron_3327_dumptruck_res',10],['auto_wayfarer_oft96_ts_d',40]
+  ] as const) {
+    const source=await loadVehicle(id),parameters=service.createParameters(source,PAK_TRUCK_PARAMETERS,'test:'+id)
+    assert.equal(parameters.parameters.find(p=>p.id==='sandCapacity')?.value,tonnes,id)
+    assert.match(service.replaceParameterValue(source,parameters.specMap.get('sandCapacity')!,tonnes*1.2),new RegExp('volumeMass\\s*=\\s*'+Math.round(tonnes*1200)))
+  }
 
   for (const [id, expectedKind] of [
     ['auto_wayfarer_st7050_cargo_main', 'trailer'],

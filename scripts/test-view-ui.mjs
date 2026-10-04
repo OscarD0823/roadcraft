@@ -128,6 +128,7 @@ try {
       'auto_n_and_s_700s_tower_crane','auto_n_and_s_loader20g_crane_grabber','auto_n_and_s_260gantry_crane_railroad',
       'auto_wayfarer_st7050_cargo_main','auto_wayfarer_st7050_trailer_cargo_ai','auto_base_alces_c400_cargo_res'
       ,'auto_greenway_ht500_dozer_new','auto_zikz_612c_heavy_crane_res','auto_base_zikz_612c_heavy_crane_res'
+      ,'auto_zikz_605e_mobile_scalper_res','auto_zikz_605e_heavy_transporter_res','auto_vostok_atm53pioneer_dozer_res'
     ].includes(e.internalName))
     await evaluate(`document.querySelectorAll('.nav-button')[0].click()`)
     for(const entry of selected){
@@ -153,6 +154,21 @@ try {
         const bounds=JSON.parse(preview.dataset.bounds);assert(bounds[0]<4.5&&bounds[1]<4&&bounds[2]<10,'Bowhead proportions changed')
         assert.equal(preview.dataset.travelAxis,'z','Vehicle is travelling sideways')
         assert.ok(Number(preview.dataset.shadingMaps)>2,'Missing original Bowhead materials')
+        assert.equal(await evaluate(`document.querySelector('.drive-scene').dataset.animatedTracks`),'2')
+        const beforeTrack=await evaluate(`Number(document.querySelector('.drive-scene').dataset.trackDistance)`)
+        await new Promise(r=>setTimeout(r,400))
+        assert(await evaluate(`Number(document.querySelector('.drive-scene').dataset.trackDistance)`)>beforeTrack,'Track band is static')
+        await evaluate(`document.querySelector('button[aria-label="Pausar movimiento"]').click()`)
+        const pausedTrack=await evaluate(`document.querySelector('.drive-scene').dataset.trackDistance`)
+        await new Promise(r=>setTimeout(r,350))
+        assert.equal(await evaluate(`document.querySelector('.drive-scene').dataset.trackDistance`),pausedTrack,'Paused tracks still move')
+        await evaluate(`document.querySelector('button[aria-label="Reanudar movimiento"]').click()`)
+        await evaluate(`(()=>{const button=[...document.querySelectorAll('.parameter-tabs button')].find(b=>b.textContent.includes('Equipo de trabajo'));button.click()})()`)
+        const capacity=await evaluate(`(()=>{const card=[...document.querySelectorAll('.parameter-card')].find(c=>c.textContent.includes('Cantidad de arena transportada'));return {original:card.querySelector('.parameter-card__title span').textContent,value:Number(card.querySelector('input').value),min:Number(card.querySelector('input').min),max:Number(card.querySelector('input').max),help:card.querySelector('.parameter-help').textContent,presets:[...card.querySelectorAll('.recommendations strong')].map(n=>Number(n.textContent))}})()`)
+        assert.match(capacity.original,/20 t/);assert.equal(capacity.value,20);assert.deepEqual(capacity.presets,[21,22,24])
+        assert.equal(capacity.min,15);assert.equal(capacity.max,25);assert.match(capacity.help,/peso/)
+        await evaluate(`(()=>{const card=[...document.querySelectorAll('.parameter-card')].find(c=>c.textContent.includes('Cantidad de arena transportada'));card.querySelectorAll('.recommendations button')[2].click()})()`)
+        assert.equal(await evaluate(`Number([...document.querySelectorAll('.parameter-card')].find(c=>c.textContent.includes('Cantidad de arena transportada')).querySelector('input').value)`),24)
         shot=await call('Page.captureScreenshot',{format:'png'});await writeFile(join(output,'bowhead-native.png'),Buffer.from(shot.data,'base64'))
         await evaluate(`document.querySelector('.view-alternative').click()`)
         await wait(`document.querySelector('.drive-cover img')?.naturalWidth>0`)
@@ -170,6 +186,9 @@ try {
       }
       if(entry.internalName==='auto_greenway_ht500_dozer_new') assert(JSON.parse(preview.dataset.bounds)[1]<5,'Greenway cabin parts displaced')
       if(entry.internalName.includes('zikz_612c')) {
+        shot=await call('Page.captureScreenshot',{format:'png'});await writeFile(join(output,entry.internalName+'.png'),Buffer.from(shot.data,'base64'))
+      }
+      if(entry.internalName.includes('zikz_605e') || entry.internalName.includes('vostok_atm53')) {
         shot=await call('Page.captureScreenshot',{format:'png'});await writeFile(join(output,entry.internalName+'.png'),Buffer.from(shot.data,'base64'))
       }
       previews.push({id:entry.id,...preview})

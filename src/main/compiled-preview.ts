@@ -12,12 +12,13 @@ import { readTplModel, decodeTplSurfaces } from './tpl-model'
 import { readMatchingTextEntries } from './zip-package'
 import { objectBody, arrayObjects } from './source-blocks'
 import { wrapTrackStrip, orientTrackStrip } from './track-geometry'
+import { nativeWheelMount } from './wheel-mount'
 import type { PreviewMaterial, VehiclePreviewAsset } from '../shared'
 
 interface Location { path: string; entry: string; metadata: Entry }
 interface Descriptor { width: number; height: number; format: number; mips: string[] }
 const compress = promisify(gzip), decompress = promisify(gunzip)
-export interface WheelSlot { frame: string; model: string; right: boolean; directory?: string; scale?: number; radius?:number; visual?:boolean }
+export interface WheelSlot { frame: string; model: string; right: boolean; directory?: string; scale?: number; radius?:number; visual?:boolean; offset?:number[] }
 export interface TrackLoop { model:string; rollers:WheelSlot[]; segmentLength:number; height:number; segmentBones:string[] }
 
 /** Own, bounded, read-only decoder. Geometry and PNGs are local caches only;
@@ -174,8 +175,7 @@ export class CompiledPreviewStore {
       const json = asset.modelEncoding === 'gzip-json' ? await decompress(encoded) : encoded
       const wheel = new THREE.ObjectLoader().parse(JSON.parse(json.toString('utf8')))
       if (slot.scale && slot.scale > 0 && slot.scale <= 10) wheel.scale.multiplyScalar(slot.scale)
-      const group = new THREE.Group(); group.name = 'preview_wheel_' + slot.frame
-      new THREE.Matrix4().fromArray(frame.bindTransform).decompose(group.position, group.quaternion, group.scale)
+      const group = nativeWheelMount(frame, slot.offset); group.name = 'preview_wheel_' + slot.frame
       if (!slot.right) wheel.rotateY(Math.PI)
       // Animate the wheel inside its fixed mounting frame, not the frame itself.
       // Steering and non-uniform frame scale must not tilt or squash the tyre.
@@ -209,7 +209,7 @@ export class CompiledPreviewStore {
     // Track strips are deliberately almost flat before they wrap around rollers.
     const trackSection=/(?:_track|_chain)$/.test(name)
     if (!dimensions.every(value => Number.isFinite(value) && value > (trackSection ? .00001 : .1) && value < 150) || dimensions.filter(value=>value>.1).length < (trackSection ? 2 : 3)) throw new Error('TPL dimensions outside preview limits')
-    const target = join(this.cacheRoot, createHash('sha1').update(tpl).update(data).update(JSON.stringify(wheels)).update(JSON.stringify(tracks)).update(JSON.stringify(wheelVersions)).update('geometry-v10').digest('hex') + '.json.gz')
+    const target = join(this.cacheRoot, createHash('sha1').update(tpl).update(data).update(JSON.stringify(wheels)).update(JSON.stringify(tracks)).update(JSON.stringify(wheelVersions)).update('geometry-v11').digest('hex') + '.json.gz')
     if (!existsSync(target)) await this.writeCache(target, await compress(JSON.stringify(model.toJSON())))
     model.traverse(object => { if (object instanceof THREE.Mesh) { object.geometry.dispose(); (object.material as THREE.Material).dispose() } })
     return { format: 'tpl', modelEncoding: 'gzip-json', modelUrl: pathToFileURL(target).href, modelImportScale: 1, wheelImportScale: 1, wheelScale: 1, textures: {}, materials }

@@ -1,6 +1,13 @@
 # RoadCraft Studio
 
-## Versión 0.8.3
+## Versión 0.8.4
+
+- Cantidad de arena en toneladas en Equipo de trabajo: valor original, entrada manual y niveles +5%, +10% y +20%. Solo aparece donde existe `prop_load_volume.volumeMass`; no se confunde con el ancho de descarga.
+- Límite preventivo de 75%–125% de la carga original, copia y restauración. Más arena aumenta el peso: los límites no garantizan estabilidad física; es necesario comprobarlo dentro del juego.
+- Corrige las ruedas giradas 90° de los Zikz 605E Mobile Scalper/Heavy Transporter y 612C Heavy Crane, las variantes Vostok afectadas y los anclajes TPL fuente. Conserva posición del buje y escala configurada sin heredar rotaciones DCC del marcador.
+- Los eslabones originales de las orugas circulan por el contorno de sus rodillos. El movimiento se detiene al pausar; no simula la deformación física del juego.
+
+### Clasificación de 0.8.3
 
 - «Logística» contiene solo las configuraciones referenciadas por los convoyes de entregas/pruebas de rutas entre empresas, no todos los vehículos que puede usar la IA.
 - Lee `RegularPool` y `TestPool` de las escenas compiladas instaladas y de fuentes de mapas/mods `.scn`. Una nueva búsqueda vuelve a comprobarlos.

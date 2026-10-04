@@ -37,6 +37,7 @@ export interface ParameterSpec {
   path: string[]
   field: string
   labelKey: string
+  helpKey?: string
   groupKey: string
   kind?: ParameterKind
   unit?: string
@@ -297,6 +298,11 @@ export const PAK_TRUCK_PARAMETERS: ParameterSpec[] = [
     safeFactors: [0.9, 1.12], absoluteRange: [0.5, 1000]
   },
   {
+    id: 'sandCapacity', path: ['properties', 'prop_load_volume'], field: 'volumeMass',
+    labelKey: 'sandCapacity', helpKey: 'sandCapacityHelp', groupKey: 'workEquipment', unit: 't', displayScale: 0.001,
+    factors: [1.05, 1.1, 1.2], safeFactors: [0.75, 1.25]
+  },
+  {
     id: 'dumpWorkWidth', path: ['properties', 'prop_road_plan_worker', 'loadVolumeSettings'], field: 'radius',
     labelKey: 'dumpWorkWidth', groupKey: 'workEquipment', unit: 'm', factors: [1.5, 2.5, 4],
     safeFactors: [0.9, 1.12], absoluteRange: [0.5, 1000], displayScale: 2
@@ -537,7 +543,8 @@ export class RoadCraftService {
         const spec = item.specs.get(parameterId)
         const parameter = item.entry.parameters.find(value => value.id === parameterId)
 
-        if (!spec || !parameter || !this.isValidParameterValue(spec, requestedValue)) continue
+        if (!spec || !parameter) continue
+        if (!this.isValidParameterValue(spec, requestedValue)) throw new Error(`El valor de ${parameter.labelKey} no es válido.`)
         if (typeof requestedValue === 'number'
           && (requestedValue < (parameter.minimum ?? Number.NEGATIVE_INFINITY)
             || requestedValue > (parameter.maximum ?? Number.POSITIVE_INFINITY))
@@ -887,6 +894,7 @@ export class RoadCraftService {
       const parameter: EditableParameter = {
         id: spec.id,
         labelKey: spec.labelKey,
+        helpKey: spec.helpKey,
         groupKey: spec.groupKey,
         kind,
         value: current,

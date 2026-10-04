@@ -19,15 +19,21 @@ export function wheelRollingAxis(object:THREE.Object3D) {
   return axis.multiplyScalar(world.x<0?-1:1)
 }
 
-/** Cancel the loader's root-axis conversion when nesting a wheel in a source bone. */
+/** Keep the wheel's original world axes; a marker bone only locates its hub. */
 export function mountSourceWheel(body: THREE.Object3D, wheel: THREE.Object3D, slot: THREE.Object3D, wheelScale = 1) {
   const unit = wheel.clone(true)
-  unit.quaternion.premultiply(body.quaternion.clone().invert())
+  body.updateWorldMatrix(true,true); wheel.updateWorldMatrix(true,true)
+  const world = wheel.getWorldQuaternion(new THREE.Quaternion())
+  if (/left$/i.test(slot.name)) world.premultiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),Math.PI))
+  // An inverse scale vector cannot cancel a rotated, non-uniform ancestor.
+  // Keep the exact inverse mounting matrix outside the freely rotating wheel.
+  const mount=new THREE.Group();mount.name='preview_source_wheel_'+slot.name;mount.matrixAutoUpdate=false
+  const hub=slot.getWorldPosition(new THREE.Vector3())
+  mount.matrix.copy(slot.matrixWorld).invert().multiply(new THREE.Matrix4().makeTranslation(hub.x,hub.y,hub.z))
+  unit.quaternion.copy(world)
   unit.scale.multiplyScalar(wheelScale * fbxMetersScale(wheel) / fbxMetersScale(body))
-  // Official wheel sources face -X; the left slots lie on +X in the body frame.
-  if (/left$/i.test(slot.name)) unit.rotateY(Math.PI)
   unit.userData.rollSign = /left$/i.test(slot.name) ? -1 : 1
-  slot.add(unit)
+  mount.add(unit);slot.add(mount)
   return unit
 }
 

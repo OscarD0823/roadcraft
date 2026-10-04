@@ -21,8 +21,9 @@ export function previewAssembly(source: string, definitions: Array<{entryName: s
     const physical = objectBody(definition.content, 'prop_truck_wheel'), visual = objectBody(definition.content, 'prop_truck_visual_wheel')
     const radius = numberField(physical,'radius'), geomRadius = numberField(physical,'geomRadius')
     const visualScale = numberField(visual,'scale')
+    const offset = ['x','y','z'].map(axis => numberField(objectBody(raw,'offset'),axis) || 0)
     const scale = Number.isFinite(visualScale) ? visualScale : Number.isFinite(radius) ? radius/(Number.isFinite(geomRadius)&&geomRadius>0 ? geomRadius : 1) : 1
-    return { frame, model: model??'', right:/isRightSided\s*=\s*True/i.test(raw), scale, radius: Number.isFinite(radius)?radius:scale, visual: !!visual }
+    return { frame, model: model??'', right:/isRightSided\s*=\s*True/i.test(raw), scale, radius: Number.isFinite(radius)?radius:scale, visual: !!visual, offset }
   }
   const physical = arrayObjects(source,'wheelSlotWithDescs').map(slot)
   const wheels = physical.filter((s):s is WheelSlot=>!!s && !!s.model)

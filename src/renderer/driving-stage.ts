@@ -3,6 +3,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js'
 import { fitVehicleCamera, visibleVehicleBounds, vehicleScreenRegion, sceneryOccludesVehicle } from './vehicle-framing'
 import { wheelRollingAxis } from './source-model'
+import { TrackMotion } from '../main/track-geometry'
 
 export type Terrain = 'auto' | 'forest' | 'mud' | 'snow' | 'rock' | 'construction' | 'asphalt'
 const palettes = {
@@ -39,6 +40,8 @@ export class DrivingStage {
   private readonly environment: THREE.WebGLRenderTarget
   private readonly vehicleBounds = new THREE.Box3()
   private driven: Array<{ object: THREE.Object3D; rotation: THREE.Quaternion; axis:THREE.Vector3; initialAxis:THREE.Vector3; radius:number }> = []
+  private tracks:TrackMotion[]=[]
+  private lastTrackDistance=-Infinity
   setDrivenParts(parts: THREE.Object3D[], radius = .6) {
     this.radius = Math.max(.15, radius)
     this.driven = parts.map(object => ({ object, rotation: object.quaternion.clone(),
@@ -112,6 +115,8 @@ export class DrivingStage {
   }
   setBody(model: THREE.Object3D) {
     this.body.clear(); this.body.add(model)
+    this.tracks=[];this.lastTrackDistance=-Infinity
+    model.traverse(object=>{if(object instanceof THREE.Mesh && object.userData.track && object.geometry.userData.trackMotion)this.tracks.push(new TrackMotion(object.geometry))})
     // Fog must not erase the ground under a crane's distant, stationary base.
     this.groundMaterial.fog = this.canTravel
     this.groundMaterial.needsUpdate = true
@@ -168,6 +173,12 @@ export class DrivingStage {
     this.vehicle.position.y = this.moving && this.canTravel ? .02 * Math.sin(this.time * 5) : 0
     this.vehicle.rotation.z = this.moving && this.canTravel ? .004 * Math.sin(this.time * 3) : 0
     for (const part of this.driven) part.object.quaternion.copy(part.rotation).multiply(new THREE.Quaternion().setFromAxisAngle(part.axis,move / part.radius))
+    // At most 30 tread updates/second, including pause and reduced-motion handling.
+    if(this.canTravel && this.tracks.length && Math.abs(move-this.lastTrackDistance)>=2.5/30) {
+      this.tracks.forEach(track=>track.update(move));this.lastTrackDistance=move
+    }
+    this.host.dataset.animatedTracks=String(this.tracks.length)
+    this.host.dataset.trackDistance=String(Number.isFinite(this.lastTrackDistance)?this.lastTrackDistance:0)
     this.host.dataset.wheelAxisDrift=String(this.driven.reduce((max,part)=>Math.max(max,1-new THREE.Vector3(1,0,0).applyQuaternion(part.object.quaternion).dot(part.initialAxis)),0))
     this.controls.update()
     if (this.body.children.length) {

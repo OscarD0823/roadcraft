@@ -19,6 +19,7 @@ export interface RecommendedValues {
 export interface EditableParameter {
   id: string
   labelKey: string
+  helpKey?: string
   groupKey: string
   kind: ParameterKind
   value: ParameterValue

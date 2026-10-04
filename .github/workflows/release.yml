@@ -36,6 +36,9 @@ jobs:
       - name: Validar convoyes logísticos
         run: npm run test:logistics
 
+      - name: Validar carga de arena, copia y restauración
+        run: npm run test:sand
+
       - name: Crear instalador
         run: npm run make
 

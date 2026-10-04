@@ -206,6 +206,7 @@
               <input v-model="draftValues[parameter.id]" type="checkbox">
               <span>{{ draftValues[parameter.id] ? t('enabled') : t('disabled') }}</span>
             </label>
+            <p v-if="parameter.helpKey" class="parameter-help">{{ t(parameter.helpKey) }}</p>
             <div v-if="parameter.recommended" class="recommendations">
               <button @click="applyRecommendation(parameter.id, parameter.recommended.low)">
                 <small>{{ t('low') }}</small><strong>{{ parameter.recommended.low }}</strong>
