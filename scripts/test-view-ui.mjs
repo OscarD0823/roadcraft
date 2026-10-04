@@ -5,6 +5,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import assert from 'node:assert/strict'
 import { createWriteStream } from 'node:fs'
+import { testJourney } from './test-journey.mjs'
 const root = dirname(dirname(fileURLToPath(import.meta.url))), output = join(root, 'out', 'qa-ui'), port = 9335
 await mkdir(output, { recursive: true })
 // Preserve this isolated cache across Vite builds; never use the user's settings.
@@ -22,6 +23,7 @@ const child = spawn(process.env.ROADCRAFT_APP_EXE ?? join(root, 'out', 'RoadCraf
 child.stdout.pipe(log,{end:false});child.stderr.pipe(log,{end:false})
 child.on('exit',(code,signal)=>{if(!log.writableEnded)log.end(`\nApplication exit: ${code} ${signal}\n`)})
 let socket
+async function runQA() {
 try {
   let target
   for (let i = 0; i < 120; i++) {
@@ -56,17 +58,15 @@ try {
   const nativeWindow=JSON.parse(stdout.trim())
   assert.equal(nativeWindow.Visible,true,'Application loaded but its Windows window stayed hidden')
   assert.equal(nativeWindow.Title,'RoadCraft Studio')
-  const counts=await evaluate('({cards:document.querySelectorAll(".content-card").length,animation:document.querySelectorAll(".workspace-journey [data-machine]").length===6})')
+  const counts=await evaluate('({cards:document.querySelectorAll(".content-card").length,animation:document.querySelectorAll(".workspace-journey [data-machine]").length===7})')
   assert.ok(counts.animation)
-  const animation=[]
-  for(const [fraction,expected] of [[.05,['scout']],[.19,['scout','dump']],[.35,['scout','dozer']],[.51,['scout','paver']],[.67,['scout','roller']],[.82,['scout','cargo']],[.92,['scout']]]){
-    await evaluate(`document.querySelectorAll('.workspace-journey .machine,.workspace-journey .road-progress').forEach(node=>node.getAnimations().forEach(a=>{a.pause();a.currentTime=28000*${fraction}}))`)
-    await new Promise(r=>setTimeout(r,50))
-    const visible=await evaluate(`[...document.querySelectorAll('.workspace-journey [data-machine]')].filter(n=>Number(getComputedStyle(n).opacity)>.8).map(n=>n.dataset.machine)`)
-    assert.deepEqual(visible,expected,'Wrong construction stage at '+fraction)
-    animation.push({fraction,visible})
+  const animation=await testJourney({evaluate,call,output})
+  if(process.env.ROADCRAFT_JOURNEY_ONLY==='1'){
+    await writeFile(join(output,'journey-results.json'),JSON.stringify({nativeWindow,counts,animation,errors},null,2))
+    assert.deepEqual(errors,[])
+    console.log('Logo verified: 10 stages, two reverse deliveries, two grader passes, scout waits, loop resets, reduced motion.')
+    return
   }
-  await evaluate(`document.querySelectorAll('.workspace-journey .machine,.workspace-journey .road-progress').forEach(node=>node.getAnimations().forEach(a=>a.play()))`)
   const scan=await evaluate('window.roadcraft.scan()')
   const all=scan.entries, images=[]
   assert.equal(all.find(e=>e.sourceType==='bro' && e.kind==='other')?.access?.control,'unknown','A source resource is not a player vehicle')
@@ -242,5 +242,7 @@ try {
   }
   await evaluate(`(()=>{const select=document.querySelector('.language-select select');select.value='es';select.dispatchEvent(new Event('change',{bubbles:true}))})()`)
   if(errors.length)throw new Error(errors.join('\n'))
-  const result={nativeWindow,counts,animation,base,source,layout,classification,images,previews,languages,errors,warnings};await writeFile(join(output,'results.json'),JSON.stringify(result,null,2));console.log(JSON.stringify({nativeWindow,counts,animation,base,source,layout,classification,images:images.length,missingImages:images.filter(i=>!i.image).map(i=>i.name),previews:previews.length,languages,errors,warnings},null,2))
+  const result={nativeWindow,counts,animation,base,source,layout,classification,images,previews,languages,errors,warnings};await writeFile(join(output,'results.json'),JSON.stringify(result,null,2));console.log(JSON.stringify({nativeWindow,counts,animation:animation.map(({fraction,label,visible})=>({fraction,label,visible})),base,source,layout,classification,images:images.length,missingImages:images.filter(i=>!i.image).map(i=>i.name),previews:previews.length,languages,errors,warnings},null,2))
 } finally {socket?.close();child.kill()}
+}
+await runQA()

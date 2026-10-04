@@ -1,6 +1,12 @@
 # RoadCraft Studio
 
-## Versión 0.8.4
+## Versión 0.8.5
+
+- El explorador del logo cruza piedras, barro y desniveles, con inclinación y salpicaduras, y espera a que termine la obra antes de salir.
+- Secuencia de carretera: volquete de orugas en reversa descargando arena, niveladora, segundo camión de arena en reversa, segunda pasada de niveladora, asfaltadora, aplanadora y camión final.
+- La superficie se transforma detrás de cada máquina, conserva las dos capas de arena y se reinicia en un ciclo de 42 segundos. Respeta la preferencia de movimiento reducido de Windows.
+
+### Mejoras de 0.8.4
 
 - Cantidad de arena en toneladas en Equipo de trabajo: valor original, entrada manual y niveles +5%, +10% y +20%. Solo aparece donde existe `prop_load_volume.volumeMass`; no se confunde con el ancho de descarga.
 - Límite preventivo de 75%–125% de la carga original, copia y restauración. Más arena aumenta el peso: los límites no garantizan estabilidad física; es necesario comprobarlo dentro del juego.
