@@ -22,7 +22,8 @@ export async function testJourney({ evaluate, call, output }) {
   const animation = []
   const originalStyle = await evaluate(`document.querySelector('.workspace-journey').getAttribute('style')`)
   try {
-    await evaluate(`document.querySelector('.workspace-journey').style.cssText='position:fixed;top:0;left:0;z-index:999999;width:900px;height:240px;max-width:none;flex:none;margin:0;'`)
+    // Retain Vue's company-colour variables while enlarging the QA canvas.
+    await evaluate(`document.querySelector('.workspace-journey').style.cssText+=';position:fixed;top:0;left:0;z-index:999999;width:900px;height:240px;max-width:none;flex:none;margin:0;'`)
     for (const [fraction, expected, label] of [
       [.04, ['scout'], 'piedras'], [.06, ['scout'], 'barro'],
       [.16, ['scout', 'dump-1'], 'arena-cargada-ida'], [.275, ['scout', 'dump-1'], 'arena-1-reversa'],
