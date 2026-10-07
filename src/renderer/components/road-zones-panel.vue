@@ -5,6 +5,7 @@
       <button class="icon-button" :disabled="busy" :aria-label="t('roadClose')" @click="close">×</button>
     </header>
     <div class="road-dialog__body">
+      <p v-if="errorMessage" class="road-warning" role="alert" data-road-error>{{ errorMessage }}</p>
       <p>{{ t('freeRoadsHelp') }}</p>
       <div class="road-status" :class="{ 'road-status--enabled': state?.status === 'enabled' }" role="status">
         {{ busy ? t('saving') : t(`roadStatus_${state?.status ?? 'loading'}`) }}
@@ -30,7 +31,13 @@ const emit = defineEmits<{ 'update:open': [value: boolean]; status: [value: Road
 const panel = ref<HTMLDialogElement>()
 const state = ref<RoadZoneStatus>()
 const busy = ref(false)
+const errorMessage = ref('')
 let request = 0
+
+function showFailure(error: unknown) {
+  errorMessage.value = error instanceof Error ? error.message : String(error)
+  panel.value?.querySelector('.road-dialog__body')?.scrollTo({ top: 0 })
+}
 
 async function refresh() {
   const current = ++request
@@ -38,14 +45,15 @@ async function refresh() {
     const result = await window.roadcraft.getRoadZoneStatus()
     if (current !== request) return
     state.value = result; emit('status', result)
-  } catch (error) { emit('error', error) }
+  } catch (error) { showFailure(error) }
 }
 async function change(enabled: boolean) {
   busy.value = true
+  errorMessage.value = ''
   try {
     const result = await window.roadcraft.setFreeRoads(enabled)
-    if (!result.ok) emit('error', new Error(result.message))
-  } catch (error) { emit('error', error) }
+    if (!result.ok) showFailure(new Error(result.message))
+  } catch (error) { showFailure(error) }
   finally { await refresh(); busy.value = false }
 }
 function close() { if (!busy.value) emit('update:open', false) }
@@ -56,7 +64,7 @@ function backdrop(event: MouseEvent) {
   if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) close()
 }
 watch(() => props.open, open => {
-  if (open) { panel.value?.showModal(); void refresh() }
+  if (open) { errorMessage.value = ''; panel.value?.showModal(); void refresh() }
   else panel.value?.close()
 })
 onMounted(refresh)

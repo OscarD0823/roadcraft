@@ -1,12 +1,13 @@
 # RoadCraft Studio
 
-## Versión 0.8.9 · Carreteras libres (experimental)
+## Versión 0.8.10 · Carreteras libres (experimental)
 
 - Botón de carretera junto al idioma y acceso desde Equipo de trabajo para probar el desbloqueo de zonas estáticas no modificables del mapa.
 - Se conserva el dominio del mapa y los permisos obligatorios de los vehículos. Confirmación explícita, juego cerrado, copia del paquete y restauración de la clase exacta sin perder cambios de camiones.
 - Si un mod o una actualización cambia esa clase, se bloquea la operación para no sobrescribirlo. Nunca se activa al instalar o iniciar el programa.
+- Los errores y cancelaciones se muestran dentro del panel, incluso cuando el juego está abierto.
 
-**Sin verificar en partida.** No garantiza construir en cualquier coordenada: las obras activas, materiales, agua, colisiones y máscaras compiladas pueden mantener sus límites. Restaurar las zonas no deshace arena/asfalto guardados. Respalda también tu partida y prueba en solitario. [Detalles de la versión](RELEASE_NOTES_0.8.9.md).
+**Sin verificar en partida.** No garantiza construir en cualquier coordenada: las obras activas, materiales, agua, colisiones y máscaras compiladas pueden mantener sus límites. Restaurar las zonas no deshace arena/asfalto guardados. Respalda también tu partida y prueba en solitario. [Detalles de la versión](RELEASE_NOTES_0.8.10.md).
 
 ### Mejoras de 0.8.8
 

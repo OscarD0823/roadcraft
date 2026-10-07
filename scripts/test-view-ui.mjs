@@ -10,7 +10,7 @@ import { testCompanyPaint } from './test-company-ui.mjs'
 import { testProjectLinks } from './project-links-ui.mjs'
 import { testLinkedWork } from './test-linked-work-ui.mjs'
 import { testRoadZonesUI } from './test-road-zones-ui.mjs'
-const root = dirname(dirname(fileURLToPath(import.meta.url))), output = join(root, 'out', 'qa-ui'), port = 9335
+const root = dirname(dirname(fileURLToPath(import.meta.url))), output = process.env.ROADCRAFT_QA_OUTPUT ?? join(root, 'out', 'qa-ui'), port = 9335
 await mkdir(output, { recursive: true })
 // Preserve this isolated cache across Vite builds; never use the user's settings.
 const previous = join(root,'.vite','view-ui','data'), dataRoot=join(output,'data')
@@ -67,6 +67,19 @@ try {
   assert.equal(nativeWindow.Visible,true,'Application loaded but its Windows window stayed hidden')
   assert.equal(nativeWindow.Title,'RoadCraft Studio')
   const projectLinks=await testProjectLinks({evaluate,call,output,repository:'roadcraft'})
+  if(process.env.ROADCRAFT_ROADS_ERROR_ONLY==='1'){
+    await evaluate(`document.querySelector('[data-road-menu]').focus();document.querySelector('[data-road-menu]').click()`)
+    await wait(`document.querySelector('.road-dialog')?.open && !document.querySelector('[data-road-enable]')?.disabled`)
+    await call('Emulation.setDeviceMetricsOverride',{width:600,height:520,deviceScaleFactor:1,mobile:false})
+    await evaluate(`document.querySelector('[data-road-enable]').click()`)
+    await wait(`document.querySelector('[data-road-error]')?.textContent.includes('Cierra RoadCraft')`)
+    const feedback=await evaluate(`(()=>{const r=document.querySelector('[data-road-error]').getBoundingClientRect();return {text:document.querySelector('[data-road-error]').textContent,top:r.top,bottom:r.bottom,status:document.querySelector('.road-status').textContent}})()`)
+    assert(feedback.top>=0 && feedback.bottom<=520,'Error hidden behind/outside dialog')
+    assert.match(feedback.status,/Protecciones normales/)
+    assert.equal((await evaluate('window.roadcraft.getRoadZoneStatus()')).status,'standard')
+    const screenshot=await call('Page.captureScreenshot',{format:'png'});await writeFile(join(output,'roads-game-open-error.png'),Buffer.from(screenshot.data,'base64'))
+    assert.deepEqual(errors,[]);console.log(JSON.stringify({feedback,errors},null,2));return
+  }
   if(process.env.ROADCRAFT_ROADS_ONLY==='1'){
     const roads=await testRoadZonesUI({evaluate,call,wait,output})
     assert.deepEqual(errors,[]);console.log(JSON.stringify({nativeWindow,roads,errors},null,2));return
