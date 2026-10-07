@@ -34,5 +34,5 @@ try {
   console.log('Game-open error visible inside modal at 600×520; synthetic installation unchanged. Live game was not modified.')
 } finally {
   if(mockGame && mockGame.exitCode===null){await new Promise(resolve=>{mockGame.once('exit',resolve);mockGame.kill()})}
-  await rm(fixture,{recursive:true,force:true})
+  await rm(fixture,{recursive:true,force:true,maxRetries:10,retryDelay:100})
 }

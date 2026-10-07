@@ -118,7 +118,7 @@ async function main() {
     console.log('Free roads: static class only, truck permissions retained, backup/cache, exact restore with vehicle edits retained, restart, confirmation cancel, game-open lock, invalid layouts, external conflicts and journal failure verified. Synthetic package only; no live game writes.')
   } finally {
     dialog.showMessageBox = savedDialog
-    await rm(temporary, { recursive: true, force: true })
+    await rm(temporary, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 })
   }
 }
 void main().then(() => app.exit(0)).catch(error => { console.error(error); app.exit(1) })
