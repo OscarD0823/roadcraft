@@ -48,6 +48,9 @@ jobs:
       - name: Validar variantes vinculadas y controles de arena
         run: npm run test:linked-work
 
+      - name: Validar modo experimental de carreteras y restauración
+        run: npm run test:roads
+
       - name: Crear instalador
         run: npm run make
 

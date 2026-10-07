@@ -14,6 +14,7 @@
       </div>
       <StartupJourney loop :paint="companyPaint" class="workspace-journey" />
       <div class="topbar__actions">
+        <button class="icon-button" :class="{ 'road-mode-active': roadStatus?.status === 'enabled' }" :title="t('freeRoads')" :aria-label="t('freeRoads')" data-road-menu @click="roadPanel = true">🛣</button>
         <label class="language-select" :title="t('language')">
           <span>🌐</span>
           <select v-model="locale" @change="changeLocale">
@@ -180,7 +181,8 @@
           </details>
         </div>
         <div v-if="activeParameterGroup === 'workEquipment' && selectedEntry.parameters.some(parameter => ['sandCapacity', 'sandOperatingDistance'].includes(parameter.id))" class="safe-notice">
-          <strong>{{ t('protectedDumpZones') }}</strong><span>{{ t('protectedDumpZonesHelp') }}</span>
+          <strong>{{ t(roadStatus?.status === 'enabled' ? 'roadStatus_enabled' : 'protectedDumpZones') }}</strong><span>{{ t(roadStatus?.status === 'enabled' ? 'roadLimits' : 'protectedDumpZonesHelp') }}</span>
+          <button class="button button--secondary" @click="roadPanel = true">🛣 {{ t('freeRoads') }}</button>
         </div>
 
         <div v-if="selectedEntry.parameters.length === 0" class="no-parameters">
@@ -399,6 +401,7 @@
       </section>
     </main>
 
+    <RoadZonesPanel v-model:open="roadPanel" :t="t" :checked-at="scanResult?.scannedAt" @status="roadStatus = $event" @error="showError" />
     <div v-if="toast" class="toast" :class="`toast--${toast.type}`">
       <strong>{{ toast.type === 'error' ? t('error') : '✓' }}</strong>
       <span>{{ toast.message }}</span>
@@ -408,11 +411,12 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
-import type { CompanyPaint, ContentEntry, ContentKind, EditableParameter, ParameterValue, SaveGameData, SaveSlotSummary, ScanResult } from '../shared'
+import type { CompanyPaint, ContentEntry, ContentKind, EditableParameter, ParameterValue, SaveGameData, SaveSlotSummary, ScanResult, RoadZoneStatus } from '../shared'
 import { entryInSection, vehicleFamilyKey } from '../shared'
 import { locales, translate } from './i18n'
 import StartupJourney from './components/startup-journey.vue'
 import VehicleDrive from './components/vehicle-drive.vue'
+import RoadZonesPanel from './components/road-zones-panel.vue'
 import { PROJECT_LINKS, type ProjectLink } from '../project-links'
 
 type View = 'all' | 'truck' | 'trailer' | 'ai' | 'modified' | 'other' | 'save'
@@ -421,6 +425,8 @@ type SaveSection = 'stats' | 'trucks' | 'maps'
 const iconUrl = new URL('../assets/app-icon.png', import.meta.url).href
 const locale = ref('es')
 const appVersion = ref('—')
+const roadPanel = ref(false)
+const roadStatus = ref<RoadZoneStatus>()
 const view = ref<View>('all')
 const search = ref('')
 const loading = ref(false)

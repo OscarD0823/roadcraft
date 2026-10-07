@@ -83,6 +83,12 @@ export interface OperationResult {
   affectedIds?: string[]
 }
 
+export interface RoadZoneStatus {
+  status: 'standard' | 'enabled' | 'conflict' | 'unavailable'
+  message?: string
+  backupPath?: string
+}
+
 /** Same chassis, not same brand. Base/mission copies stay out of linked edits. */
 export function vehicleFamilyKey(entry: Pick<ContentEntry, 'internalName' | 'kind' | 'sourceType' | 'access'>): string | undefined {
   if (entry.sourceType !== 'pak' || entry.access?.baseVariant || entry.access?.logistics?.length
@@ -192,6 +198,8 @@ export interface VehiclePreviewAsset {
 }
 
 export interface RoadCraftApi {
+  getRoadZoneStatus(): Promise<RoadZoneStatus>
+  setFreeRoads(enabled: boolean): Promise<OperationResult>
   openProjectLink(link: import('./project-links').ProjectLink): Promise<void>
   getPreview(id: string, companyMaterial?: string): Promise<VehiclePreviewAsset | undefined>
   getCompanyPaint(material: string): Promise<CompanyPaint | undefined>

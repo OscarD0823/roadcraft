@@ -4,9 +4,9 @@ import { existsSync } from 'node:fs'
 import { basename, dirname, extname, join, relative, resolve, sep } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { execFile, spawn } from 'node:child_process'
-import { createHash } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { promisify } from 'node:util'
-import type { ContentEntry, ContentKind, EditableParameter, OperationResult, ParameterKind, ParameterValue, SaveGameChanges, SaveGameData, SavePayload, SaveSlotSummary, ScanResult, VehiclePreviewAsset, PreviewMaterial } from '../shared'
+import type { ContentEntry, ContentKind, EditableParameter, OperationResult, ParameterKind, ParameterValue, SaveGameChanges, SaveGameData, SavePayload, SaveSlotSummary, ScanResult, VehiclePreviewAsset, PreviewMaterial, RoadZoneStatus } from '../shared'
 import { vehicleFamilyKey } from '../shared'
 import { applySaveGameChanges, createSaveGameData, decodeCompleteSave, encodeCompleteSave } from './save-game'
 import { readMatchingBinaryEntries, readMatchingTextEntries, replaceTextEntries, type TextArchiveEntry } from './zip-package'
@@ -15,6 +15,8 @@ import { CompiledPreviewStore } from './compiled-preview'
 import { arrayObjects } from './source-blocks'
 import { previewAssembly, previewMobility } from './preview-assembly'
 import { readLogisticsCatalog, type LogisticsCatalog } from './logistics-catalog'
+import { ROAD_ZONE_CLASS, freeRoadZoneClass, validRoadZoneSnapshot, type RoadZoneSnapshot } from './road-zones'
+import { translate } from '../renderer/i18n'
 
 interface PackageBackupState {
   backupPath: string
@@ -32,6 +34,7 @@ interface StudioSettings {
   originalLinkedValues: Record<string, Record<string, Record<string, ParameterValue>>>
   editedAt: Record<string, number>
   packageBackups: Record<string, PackageBackupState>
+  roadZoneSnapshots: Record<string, RoadZoneSnapshot>
 }
 
 export interface ParameterSpec {
@@ -343,7 +346,8 @@ export class RoadCraftService {
     originalValues: {},
     originalLinkedValues: {},
     editedAt: {},
-    packageBackups: {}
+    packageBackups: {},
+    roadZoneSnapshots: {}
   }
   private catalog = new Map<string, CatalogItem>()
   private changingFiles = false
@@ -361,7 +365,8 @@ export class RoadCraftService {
         originalValues: stored.originalValues ?? {},
         originalLinkedValues: stored.originalLinkedValues ?? {},
         editedAt: stored.editedAt ?? {},
-        packageBackups: stored.packageBackups ?? {}
+        packageBackups: stored.packageBackups ?? {},
+        roadZoneSnapshots: stored.roadZoneSnapshots ?? {}
       }
     } catch {
       await this.persistSettings()
@@ -379,6 +384,76 @@ export class RoadCraftService {
       locale: this.settings.locale,
       version: app.getVersion()
     }
+  }
+
+  private async roadZoneSource(packagePath: string) {
+    const sources = await readMatchingTextEntries(packagePath, name => name === ROAD_ZONE_CLASS)
+    if (sources.length !== 1) throw new Error('Falta la clase de zonas o hay una ruta duplicada en el paquete.')
+    return sources[0].content
+  }
+
+  async getRoadZoneStatus(): Promise<RoadZoneStatus> {
+    try {
+      const path = resolve(this.getBasePackagePath())
+      const source = await this.roadZoneSource(path)
+      const snapshot = this.settings.roadZoneSnapshots[path]
+      if (snapshot) {
+        if (!validRoadZoneSnapshot(snapshot)) return { status: 'conflict', message: 'El respaldo de las zonas no es válido. No se sobrescribirá el juego.' }
+        if (source === snapshot.enabledSource) return { status: 'enabled', backupPath: snapshot.backupPath }
+        if (source === snapshot.originalSource) return { status: 'standard', backupPath: snapshot.backupPath }
+        return { status: 'conflict', message: 'La clase de zonas cambió fuera del editor, posiblemente por una actualización o mod. No se sobrescribirá.' }
+      }
+      freeRoadZoneClass(source) // Compatibility check only; never writes during scan/startup.
+      return { status: 'standard' }
+    } catch (error) {
+      return { status: 'unavailable', message: error instanceof Error ? error.message : String(error) }
+    }
+  }
+
+  async setFreeRoads(enabled: boolean): Promise<OperationResult> {
+    if (typeof enabled !== 'boolean') return { ok: false, message: 'El modo solicitado no es válido.' }
+    if (this.changingFiles) return { ok: false, message: 'Espera a que termine la edición actual.' }
+    this.changingFiles = true
+    try {
+      const path = resolve(this.getBasePackagePath())
+      const source = await this.roadZoneSource(path)
+      let snapshot = this.settings.roadZoneSnapshots[path]
+      if (snapshot && (!validRoadZoneSnapshot(snapshot)
+        || ![snapshot.originalSource, snapshot.enabledSource].includes(source))) {
+        throw new Error('La clase de zonas o su respaldo cambió fuera del editor. No se sobrescribirá.')
+      }
+      if (!enabled && !snapshot) return { ok: true }
+      const replacement = enabled ? snapshot?.enabledSource ?? freeRoadZoneClass(source) : snapshot!.originalSource
+      if (source === replacement) return { ok: true, backupPath: snapshot?.backupPath }
+      await this.assertGameIsClosed()
+      if (enabled) {
+        const t = (key: string) => translate(this.settings.locale, key)
+        const response = await dialog.showMessageBox({
+          type: 'warning', title: t('freeRoads'), message: t('roadConfirmMessage'), detail: t('roadConfirmDetail'),
+          buttons: [t('roadCancel'), t('roadEnable')], defaultId: 0, cancelId: 0, noLink: true
+        })
+        if (response.response !== 1) return { ok: false, message: 'Operación cancelada. El juego no se modificó.' }
+      }
+      const signature = await this.fileSignature(path)
+      await this.ensurePackageBackup(path)
+      // Journal the exact class before the ZIP swap; recoverable after an app crash.
+      if (!snapshot) {
+        snapshot = { originalSource: source, enabledSource: replacement, backupPath: this.settings.packageBackups[path].backupPath }
+        this.settings.roadZoneSnapshots[path] = snapshot
+      }
+      await this.persistSettings()
+      await this.assertGameIsClosed()
+      if (await this.fileSignature(path) !== signature || await this.roadZoneSource(path) !== source) {
+        throw new Error('El paquete cambió durante la operación. No se modificaron las zonas.')
+      }
+      await replaceTextEntries(path, new Map([[ROAD_ZONE_CLASS, replacement]]))
+      await this.invalidatePackageCache(path)
+      this.settings.packageBackups[path].lastWrittenSignature = await this.fileSignature(path)
+      await this.persistSettings()
+      return { ok: true, backupPath: snapshot.backupPath }
+    } catch (error) {
+      return { ok: false, message: error instanceof Error ? error.message : String(error) }
+    } finally { this.changingFiles = false }
   }
 
   async setLocale(locale: string) {
@@ -489,6 +564,7 @@ export class RoadCraftService {
   }
 
   async chooseInstall(): Promise<ScanResult | undefined> {
+    if (this.changingFiles) throw new Error('Espera a que termine la edición antes de cambiar de instalación.')
     const result = await dialog.showOpenDialog({
       title: 'Seleccionar la carpeta de RoadCraft',
       defaultPath: dirname(this.settings.installPath),
@@ -496,6 +572,7 @@ export class RoadCraftService {
     })
 
     if (result.canceled || !result.filePaths[0]) return
+    if (this.changingFiles) throw new Error('Espera a que termine la edición antes de cambiar de instalación.')
 
     const selected = this.normalizeInstallPath(result.filePaths[0])
     if (!selected) {
@@ -1249,7 +1326,11 @@ export class RoadCraftService {
 
   private async persistSettings() {
     await mkdir(dirname(this.settingsPath), { recursive: true })
-    await writeFile(this.settingsPath, JSON.stringify(this.settings, null, 2), 'utf8')
+    const temporary = `${this.settingsPath}.${randomUUID()}.tmp`
+    try {
+      await writeFile(temporary, JSON.stringify(this.settings, null, 2), { encoding: 'utf8', flag: 'wx' })
+      await rename(temporary, this.settingsPath)
+    } finally { await unlink(temporary).catch(() => {}) }
   }
 
   private normalizeInstallPath(selected: string) {

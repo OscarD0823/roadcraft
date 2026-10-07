@@ -1,11 +1,19 @@
 # RoadCraft Studio
 
-## Versión 0.8.8
+## Versión 0.8.9 · Carreteras libres (experimental)
+
+- Botón de carretera junto al idioma y acceso desde Equipo de trabajo para probar el desbloqueo de zonas estáticas no modificables del mapa.
+- Se conserva el dominio del mapa y los permisos obligatorios de los vehículos. Confirmación explícita, juego cerrado, copia del paquete y restauración de la clase exacta sin perder cambios de camiones.
+- Si un mod o una actualización cambia esa clase, se bloquea la operación para no sobrescribirlo. Nunca se activa al instalar o iniciar el programa.
+
+**Sin verificar en partida.** No garantiza construir en cualquier coordenada: las obras activas, materiales, agua, colisiones y máscaras compiladas pueden mantener sus límites. Restaurar las zonas no deshace arena/asfalto guardados. Respalda también tu partida y prueba en solitario. [Detalles de la versión](RELEASE_NOTES_0.8.9.md).
+
+### Mejoras de 0.8.8
 
 - Radio del ZikZ Mobile Scalper hasta 10.000 m, con botón «Suministro para todo el mapa · 10 km (experimental)». Sincroniza las tres distancias; no cambia la geometría ni promete estabilidad en partida.
 - Edición vinculada de variantes compatibles del mismo chasis, incluidas old/restauradas y familias Wayfarer. Se puede desactivar y consultar la lista antes de guardar. Solo copia ajustes cambiados; respeta diferencias mecánicas proporcionales y no añade equipos inexistentes ni edita copias base/convoyes.
 - Cada variante conserva sus originales. Los cambios de una familia se verifican y reemplazan en una sola operación del PAK; si algún valor no es válido, se rechaza el conjunto.
-- Las zonas protegidas para verter arena **no se desactivan**: el controlador exige el componente de permisos. Se documenta la limitación en Equipo de trabajo sin ofrecer un bypass inseguro.
+- Los ajustes de arena del vehículo no desactivan las zonas protegidas. Desde 0.8.9, la prueba experimental se hace sobre la clase separada de zonas del mapa, conservando los permisos del camión.
 
 ### Identidad de 0.8.7
 

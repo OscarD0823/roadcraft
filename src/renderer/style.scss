@@ -251,6 +251,8 @@ button { cursor: pointer; }
   strong { color: #334155; }
 }
 
+.road-mode-active { border-color: #f97316 !important; background: #7c3d15 !important; }
+
 .tool-button {
   display: grid;
   width: 38px;

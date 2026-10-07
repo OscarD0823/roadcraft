@@ -2,6 +2,8 @@ import { contextBridge, ipcRenderer } from 'electron'
 import type { RoadCraftApi, SaveGameChanges, SavePayload } from './shared'
 
 const api: RoadCraftApi = {
+  getRoadZoneStatus: () => ipcRenderer.invoke('roadcraft:road-zone-status'),
+  setFreeRoads: enabled => ipcRenderer.invoke('roadcraft:free-roads', enabled),
   openProjectLink: link => ipcRenderer.invoke('roadcraft:open-project-link', link),
   getPreview: (id: string, companyMaterial?: string) => ipcRenderer.invoke('roadcraft:get-preview', id, companyMaterial),
   getCompanyPaint: (material: string) => ipcRenderer.invoke('roadcraft:get-company-paint', material),

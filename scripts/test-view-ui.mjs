@@ -9,6 +9,7 @@ import { testJourney } from './test-journey.mjs'
 import { testCompanyPaint } from './test-company-ui.mjs'
 import { testProjectLinks } from './project-links-ui.mjs'
 import { testLinkedWork } from './test-linked-work-ui.mjs'
+import { testRoadZonesUI } from './test-road-zones-ui.mjs'
 const root = dirname(dirname(fileURLToPath(import.meta.url))), output = join(root, 'out', 'qa-ui'), port = 9335
 await mkdir(output, { recursive: true })
 // Preserve this isolated cache across Vite builds; never use the user's settings.
@@ -66,6 +67,10 @@ try {
   assert.equal(nativeWindow.Visible,true,'Application loaded but its Windows window stayed hidden')
   assert.equal(nativeWindow.Title,'RoadCraft Studio')
   const projectLinks=await testProjectLinks({evaluate,call,output,repository:'roadcraft'})
+  if(process.env.ROADCRAFT_ROADS_ONLY==='1'){
+    const roads=await testRoadZonesUI({evaluate,call,wait,output})
+    assert.deepEqual(errors,[]);console.log(JSON.stringify({nativeWindow,roads,errors},null,2));return
+  }
   if(process.env.ROADCRAFT_LINKS_ONLY==='1'){
     await writeFile(join(output,'project-links-results.json'),JSON.stringify({nativeWindow,projectLinks,errors},null,2))
     assert.deepEqual(errors,[]);console.log(JSON.stringify({nativeWindow,projectLinks,errors},null,2));return

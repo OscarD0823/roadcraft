@@ -55,6 +55,8 @@ if (squirrelStartup) {
 }
 
 function registerHandlers(service: RoadCraftService) {
+  ipcMain.handle('roadcraft:road-zone-status', () => service.getRoadZoneStatus())
+  ipcMain.handle('roadcraft:free-roads', (_event, enabled: boolean) => service.setFreeRoads(enabled))
   ipcMain.handle('roadcraft:open-project-link', (_event, link: unknown) => shell.openExternal(projectLinkUrl(link)))
   ipcMain.handle('roadcraft:get-preview', (_event, id: string, companyMaterial?: string) => service.getPreview(id, companyMaterial))
   ipcMain.handle('roadcraft:get-company-paint', (_event, material: string) => service.getCompanyPaint(material))
