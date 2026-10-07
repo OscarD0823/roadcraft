@@ -73,6 +73,7 @@ try {
     await call('Emulation.setDeviceMetricsOverride',{width:600,height:520,deviceScaleFactor:1,mobile:false})
     await evaluate(`document.querySelector('[data-road-enable]').click()`)
     await wait(`document.querySelector('[data-road-error]')?.textContent.includes('Cierra RoadCraft')`)
+    await wait(`document.querySelector('.road-status')?.textContent.includes('Protecciones normales') && !document.querySelector('[data-road-enable]')?.disabled`)
     const feedback=await evaluate(`(()=>{const r=document.querySelector('[data-road-error]').getBoundingClientRect();return {text:document.querySelector('[data-road-error]').textContent,top:r.top,bottom:r.bottom,status:document.querySelector('.road-status').textContent}})()`)
     assert(feedback.top>=0 && feedback.bottom<=520,'Error hidden behind/outside dialog')
     assert.match(feedback.status,/Protecciones normales/)

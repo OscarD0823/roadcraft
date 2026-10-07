@@ -30,6 +30,7 @@ try {
   const settings = JSON.parse(await readFile(join(data,'settings.json'),'utf8'))
   assert.deepEqual(settings.roadZoneSnapshots??{},{}); assert.deepEqual(settings.packageBackups??{},{})
   // Keep only the screenshot as diagnostic output; no retained game assets or executables.
+  await mkdir(join(root,'qa-ui'),{recursive:true})
   await copyFile(join(output,'roads-game-open-error.png'),join(root,'qa-ui/roads-game-open-error.png'))
   console.log('Game-open error visible inside modal at 600×520; synthetic installation unchanged. Live game was not modified.')
 } finally {
