@@ -7,8 +7,9 @@ import { execFile, spawn } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { promisify } from 'node:util'
 import type { ContentEntry, ContentKind, EditableParameter, OperationResult, ParameterKind, ParameterValue, SaveGameChanges, SaveGameData, SavePayload, SaveSlotSummary, ScanResult, VehiclePreviewAsset, PreviewMaterial } from '../shared'
+import { vehicleFamilyKey } from '../shared'
 import { applySaveGameChanges, createSaveGameData, decodeCompleteSave, encodeCompleteSave } from './save-game'
-import { readMatchingBinaryEntries, readMatchingTextEntries, replaceTextEntry, type TextArchiveEntry } from './zip-package'
+import { readMatchingBinaryEntries, readMatchingTextEntries, replaceTextEntries, type TextArchiveEntry } from './zip-package'
 import { decodeRoadCraftShopTexture, decodeRoadCraftTexture } from './shop-texture'
 import { CompiledPreviewStore } from './compiled-preview'
 import { arrayObjects } from './source-blocks'
@@ -28,6 +29,7 @@ interface StudioSettings {
   automaticImages: Record<string, string>
   imagePackageSignature: string
   originalValues: Record<string, Record<string, ParameterValue>>
+  originalLinkedValues: Record<string, Record<string, Record<string, ParameterValue>>>
   editedAt: Record<string, number>
   packageBackups: Record<string, PackageBackupState>
 }
@@ -309,7 +311,7 @@ export const PAK_TRUCK_PARAMETERS: ParameterSpec[] = [
   },
   {
     id: 'sandAllowedPercent', path: ['properties', 'prop_truck_mobile_sand_screen'], field: 'allowedPercent',
-    labelKey: 'sandAllowedPercent', groupKey: 'workEquipment', factors: [0.5, 0.25, 0],
+    labelKey: 'sandAllowedPercent', helpKey: 'sandAllowedPercentHelp', groupKey: 'workEquipment', factors: [0.5, 0.25, 0],
     safeFactors: [0, 1], absoluteRange: [0, 1]
   },
   {
@@ -320,8 +322,8 @@ export const PAK_TRUCK_PARAMETERS: ParameterSpec[] = [
   {
     id: 'sandOperatingDistance',
     path: ['properties', 'prop_usable', 'smartsEntryPoints', 'SandStorage', 'checkers', 'UsableCheckerDistance'],
-    field: 'distance', labelKey: 'sandOperatingDistance', groupKey: 'workEquipment', unit: 'm',
-    factors: [1.25, 1.5, 2], safeFactors: [0.75, 1.5], absoluteRange: [20, 300],
+    field: 'distance', labelKey: 'sandOperatingDistance', helpKey: 'sandOperatingDistanceHelp', groupKey: 'workEquipment', unit: 'm',
+    factors: [1.25, 1.5, 2], safeFactors: [0.75, 1.5], absoluteRange: [20, 10000],
     linkedParameters: [
       { path: ['properties', 'prop_usable', 'smartsEntryPoints', 'SandStorage'], field: 'focusDistance' },
       { path: ['properties', 'prop_truck_mobile_sand_screen'], field: 'sandDistance' }
@@ -339,10 +341,12 @@ export class RoadCraftService {
     automaticImages: {},
     imagePackageSignature: '',
     originalValues: {},
+    originalLinkedValues: {},
     editedAt: {},
     packageBackups: {}
   }
   private catalog = new Map<string, CatalogItem>()
+  private changingFiles = false
   private readonly trustedSavePaths = new Set<string>()
 
   async init() {
@@ -355,6 +359,7 @@ export class RoadCraftService {
         automaticImages: stored.automaticImages ?? {},
         imagePackageSignature: stored.imagePackageSignature ?? '',
         originalValues: stored.originalValues ?? {},
+        originalLinkedValues: stored.originalLinkedValues ?? {},
         editedAt: stored.editedAt ?? {},
         packageBackups: stored.packageBackups ?? {}
       }
@@ -552,20 +557,20 @@ export class RoadCraftService {
   }
 
   async save(payload: SavePayload): Promise<OperationResult> {
+    if (this.changingFiles) return { ok: false, message: 'Espera a que termine la edición actual.' }
+    this.changingFiles = true
     try {
       const item = this.catalog.get(payload.filePath)
       if (!item || !this.isTrustedItem(item)) {
         throw new Error('El archivo ya no pertenece a la biblioteca analizada.')
       }
 
-      let source = await this.readItemSource(item)
-      const originalValues = this.settings.originalValues[item.entry.id] ?? {}
-
+      const changes: Record<string, ParameterValue> = {}
       for (const [parameterId, requestedValue] of Object.entries(payload.values)) {
         const spec = item.specs.get(parameterId)
         const parameter = item.entry.parameters.find(value => value.id === parameterId)
 
-        if (!spec || !parameter) continue
+        if (!spec || !parameter) throw new Error('El ajuste ya no existe. Vuelve a buscar contenido.')
         if (!this.isValidParameterValue(spec, requestedValue)) throw new Error(`El valor de ${parameter.labelKey} no es válido.`)
         if (typeof requestedValue === 'number'
           && (requestedValue < (parameter.minimum ?? Number.NEGATIVE_INFINITY)
@@ -574,46 +579,129 @@ export class RoadCraftService {
           throw new Error(`El valor de ${parameter.labelKey} está fuera del rango seguro.`)
         }
 
-        originalValues[parameterId] ??= parameter.original
-        source = this.replaceParameterValue(source, spec, requestedValue)
-        source = this.replaceLinkedParameterValues(source, spec, requestedValue)
+        if (requestedValue !== parameter.value) changes[parameterId] = requestedValue
       }
-
-      await this.writeItemSource(item, source)
-      this.settings.originalValues[item.entry.id] = originalValues
-      this.settings.editedAt[item.entry.id] = Date.now()
+      if (!Object.keys(changes).length) return { ok: true, affectedIds: [] }
+      const items = this.editTargets(item, payload.applyToVariants === true)
+      const sourceSignature = await this.fileSignature(item.sourcePath)
+      const sources = await this.readTargetSources(items)
+      const plans: Array<{ item: CatalogItem; source: string; originals: Record<string, ParameterValue>; linkedOriginals: Record<string, Record<string, ParameterValue>> }> = []
+      for (const target of items) {
+        let source = sources.get(target.entry.id)!
+        const originals = { ...this.settings.originalValues[target.entry.id] }
+        const linkedOriginals = { ...this.settings.originalLinkedValues[target.entry.id] }
+        let changed = false
+        for (const [id, selectedValue] of Object.entries(changes)) {
+          const spec = target.specs.get(id)
+          const parameter = target.entry.parameters.find(p => p.id === id)
+          if (!spec || !parameter) continue // No dump/sand equipment is added to a different variant.
+          if (this.readParameterValue(source, spec) !== parameter.value) throw new Error('El paquete cambió fuera del editor. Vuelve a buscar contenido.')
+          const selectedParameter = item.entry.parameters.find(p => p.id === id)!
+          const value = target === item || spec.absoluteRange || typeof selectedValue !== 'number'
+            || typeof selectedParameter.original !== 'number' || !selectedParameter.original || typeof parameter.original !== 'number'
+            ? selectedValue : this.roundFor(parameter.original, parameter.original * selectedValue / selectedParameter.original)
+          if (!this.isValidParameterValue(spec, value) || typeof value === 'number'
+            && (value < (parameter.minimum ?? -Infinity) || value > (parameter.maximum ?? Infinity))) {
+            throw new Error(`El cambio supera el rango permitido de ${target.entry.name}. No se guardó ninguna variante.`)
+          }
+          if (value === parameter.value) continue
+          originals[id] ??= parameter.original
+          if (!linkedOriginals[id]) {
+            linkedOriginals[id] = {}
+            for (const linkedSpec of this.linkedSpecs(spec)) {
+              const original = this.readParameterValue(source, linkedSpec)
+              if (original !== undefined) linkedOriginals[id][this.linkedKey(linkedSpec)] = original
+            }
+          }
+          source = this.replaceParameterValue(source, spec, value)
+          source = this.replaceLinkedParameterValues(source, spec, value)
+          changed = true
+        }
+        if (changed) plans.push({ item: target, source, originals, linkedOriginals })
+      }
+      await this.writeTargetSources(plans, sourceSignature)
+      for (const plan of plans) {
+        this.settings.originalValues[plan.item.entry.id] = plan.originals
+        this.settings.originalLinkedValues[plan.item.entry.id] = plan.linkedOriginals
+        this.settings.editedAt[plan.item.entry.id] = Date.now()
+      }
       await this.persistSettings()
       await this.scan()
-      return { ok: true }
+      return { ok: true, affectedIds: plans.map(plan => plan.item.entry.id) }
     } catch (error) {
       return { ok: false, message: error instanceof Error ? error.message : String(error) }
+    } finally {
+      this.changingFiles = false
     }
   }
 
-  async restore(itemId: string): Promise<OperationResult> {
+  async restore(itemId: string, applyToVariants = false): Promise<OperationResult> {
+    if (this.changingFiles) return { ok: false, message: 'Espera a que termine la edición actual.' }
+    this.changingFiles = true
     try {
       const item = this.catalog.get(itemId)
-      const originalValues = this.settings.originalValues[itemId]
-      if (!item || !originalValues || !this.isTrustedItem(item)) return { ok: true }
-
-      let source = await this.readItemSource(item)
-      for (const [parameterId, originalValue] of Object.entries(originalValues)) {
-        const spec = item.specs.get(parameterId)
-        if (spec) {
+      if (!item || !this.isTrustedItem(item)) throw new Error('Vuelve a analizar la biblioteca antes de restaurar.')
+      const items = this.editTargets(item, applyToVariants).filter(target => this.settings.originalValues[target.entry.id])
+      if (!items.length) return { ok: true, affectedIds: [] }
+      const sourceSignature = await this.fileSignature(item.sourcePath)
+      const sources = await this.readTargetSources(items)
+      const plans = items.map(target => {
+        let source = sources.get(target.entry.id)!
+        for (const [parameterId, originalValue] of Object.entries(this.settings.originalValues[target.entry.id])) {
+          const spec = target.specs.get(parameterId)
+          if (!spec) throw new Error('Falta un ajuste original. Vuelve a buscar contenido antes de restaurar.')
           source = this.replaceParameterValue(source, spec, originalValue)
-          source = this.replaceLinkedParameterValues(source, spec, originalValue)
+          const linkedOriginals = this.settings.originalLinkedValues[target.entry.id]?.[parameterId]
+          for (const linkedSpec of this.linkedSpecs(spec)) {
+            const linkedOriginal = linkedOriginals ? linkedOriginals[this.linkedKey(linkedSpec)] : originalValue
+            if (linkedOriginal !== undefined && this.readParameterValue(source, linkedSpec) !== undefined) {
+              source = this.replaceParameterValue(source, linkedSpec, linkedOriginal)
+            }
+          }
         }
+        return { item: target, source }
+      })
+      await this.writeTargetSources(plans, sourceSignature)
+      for (const target of items) {
+        delete this.settings.originalValues[target.entry.id]
+        delete this.settings.originalLinkedValues[target.entry.id]
+        delete this.settings.editedAt[target.entry.id]
       }
-
-      await this.writeItemSource(item, source)
-      delete this.settings.originalValues[itemId]
-      delete this.settings.editedAt[itemId]
       await this.persistSettings()
       await this.scan()
-      return { ok: true }
+      return { ok: true, affectedIds: items.map(target => target.entry.id) }
     } catch (error) {
       return { ok: false, message: error instanceof Error ? error.message : String(error) }
+    } finally {
+      this.changingFiles = false
     }
+  }
+
+  private editTargets(item: CatalogItem, includeVariants: boolean) {
+    const family = includeVariants && vehicleFamilyKey(item.entry)
+    return family ? [...this.catalog.values()].filter(target => target.sourcePath === item.sourcePath
+      && vehicleFamilyKey(target.entry) === family && this.isTrustedItem(target)) : [item]
+  }
+
+  private async readTargetSources(items: CatalogItem[]) {
+    if (items[0].sourceType === 'bro') return new Map([[items[0].entry.id, await this.readItemSource(items[0])]])
+    const names = new Set(items.map(item => item.archiveEntryName))
+    const sources = await readMatchingTextEntries(items[0].sourcePath, name => names.has(name))
+    if (sources.length !== items.length || new Set(sources.map(source => source.entryName)).size !== items.length) throw new Error('Faltan variantes o hay rutas duplicadas. Vuelve a analizar.')
+    return new Map(items.map(item => [item.entry.id, sources.find(source => source.entryName === item.archiveEntryName)!.content]))
+  }
+
+  private async writeTargetSources(plans: Array<{ item: CatalogItem; source: string }>, expectedSignature: string) {
+    if (!plans.length) return
+    if (await this.fileSignature(plans[0].item.sourcePath) !== expectedSignature) throw new Error('El archivo cambió durante la edición. Vuelve a analizar la biblioteca.')
+    if (plans[0].item.sourceType === 'bro') return this.writeItemSource(plans[0].item, plans[0].source)
+    const packagePath = plans[0].item.sourcePath
+    await this.assertGameIsClosed()
+    await this.ensurePackageBackup(packagePath)
+    if (await this.fileSignature(packagePath) !== expectedSignature) throw new Error('El paquete cambió durante la copia. No se guardó ninguna variante.')
+    await replaceTextEntries(packagePath, new Map(plans.map(plan => [plan.item.archiveEntryName!, plan.source])))
+    await this.invalidatePackageCache(packagePath)
+    this.settings.packageBackups[packagePath].lastWrittenSignature = await this.fileSignature(packagePath)
   }
 
   async chooseImage(itemId: string) {
@@ -966,7 +1054,7 @@ export class RoadCraftService {
     if (!item.archiveEntryName) throw new Error('El vehículo no tiene una ruta interna válida.')
     await this.assertGameIsClosed()
     await this.ensurePackageBackup(item.sourcePath)
-    await replaceTextEntry(item.sourcePath, item.archiveEntryName, source)
+    await replaceTextEntries(item.sourcePath, new Map([[item.archiveEntryName, source]]))
     await this.invalidatePackageCache(item.sourcePath)
 
     const packageState = this.settings.packageBackups[item.sourcePath]
@@ -1029,25 +1117,19 @@ export class RoadCraftService {
   }
 
   private replaceLinkedParameterValues(source: string, spec: ParameterSpec, value: ParameterValue) {
-    for (const path of spec.linkedPaths ?? []) {
-      const linkedSpec: ParameterSpec = { ...spec, path, linkedPaths: undefined }
-      if (this.readParameterValue(source, linkedSpec) !== undefined) {
-        source = this.replaceParameterValue(source, linkedSpec, value)
-      }
-    }
-    for (const linked of spec.linkedParameters ?? []) {
-      const linkedSpec: ParameterSpec = {
-        ...spec,
-        path: linked.path,
-        field: linked.field,
-        linkedPaths: undefined,
-        linkedParameters: undefined
-      }
+    for (const linkedSpec of this.linkedSpecs(spec)) {
       if (this.readParameterValue(source, linkedSpec) !== undefined) {
         source = this.replaceParameterValue(source, linkedSpec, value)
       }
     }
     return source
+  }
+
+  private linkedKey(spec: ParameterSpec) { return `${spec.path.join('/')}#${spec.field}` }
+
+  private linkedSpecs(spec: ParameterSpec): ParameterSpec[] {
+    return [...(spec.linkedPaths ?? []).map(path => ({ path, field: spec.field })), ...(spec.linkedParameters ?? [])]
+      .map(linked => ({ ...spec, ...linked, linkedPaths: undefined, linkedParameters: undefined }))
   }
 
   private isValidParameterValue(spec: ParameterSpec, value: ParameterValue) {

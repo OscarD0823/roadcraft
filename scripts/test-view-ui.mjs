@@ -8,6 +8,7 @@ import { createWriteStream } from 'node:fs'
 import { testJourney } from './test-journey.mjs'
 import { testCompanyPaint } from './test-company-ui.mjs'
 import { testProjectLinks } from './project-links-ui.mjs'
+import { testLinkedWork } from './test-linked-work-ui.mjs'
 const root = dirname(dirname(fileURLToPath(import.meta.url))), output = join(root, 'out', 'qa-ui'), port = 9335
 await mkdir(output, { recursive: true })
 // Preserve this isolated cache across Vite builds; never use the user's settings.
@@ -80,6 +81,10 @@ try {
   }
   const scan=await evaluate('window.roadcraft.scan()')
   const all=scan.entries, images=[]
+  if(process.env.ROADCRAFT_LINKED_WORK_ONLY==='1'){
+    const linked=await testLinkedWork({evaluate,call,wait,all,output})
+    assert.deepEqual(errors,[]);console.log(JSON.stringify({nativeWindow,linked,errors},null,2));return
+  }
   const company=companyFixture?await testCompanyPaint({evaluate,wait,all}):undefined
   assert.equal(all.find(e=>e.sourceType==='bro' && e.kind==='other')?.access?.control,'unknown','A source resource is not a player vehicle')
   // Read every cover independently of lazy loading. No game or save writes.

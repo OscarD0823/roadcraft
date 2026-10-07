@@ -1,6 +1,13 @@
 # RoadCraft Studio
 
-## Versión 0.8.7
+## Versión 0.8.8
+
+- Radio del ZikZ Mobile Scalper hasta 10.000 m, con botón «Suministro para todo el mapa · 10 km (experimental)». Sincroniza las tres distancias; no cambia la geometría ni promete estabilidad en partida.
+- Edición vinculada de variantes compatibles del mismo chasis, incluidas old/restauradas y familias Wayfarer. Se puede desactivar y consultar la lista antes de guardar. Solo copia ajustes cambiados; respeta diferencias mecánicas proporcionales y no añade equipos inexistentes ni edita copias base/convoyes.
+- Cada variante conserva sus originales. Los cambios de una familia se verifican y reemplazan en una sola operación del PAK; si algún valor no es válido, se rechaza el conjunto.
+- Las zonas protegidas para verter arena **no se desactivan**: el controlador exige el componente de permisos. Se documenta la limitación en Equipo de trabajo sin ofrecer un bypass inseguro.
+
+### Identidad de 0.8.7
 
 - Identificador `@OscarD0823` en la cabecera, enlazado al perfil de GitHub, y acceso «Repo» al repositorio de RoadCraft Studio.
 - Ambos enlaces permanecen visibles al dividir la pantalla, admiten foco de teclado y abren el navegador predeterminado, sin sustituir la ventana del editor.

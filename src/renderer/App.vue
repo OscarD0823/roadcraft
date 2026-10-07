@@ -172,13 +172,24 @@
           <span>{{ t(selectedEntry.sourceType === 'pak' ? 'pakSafeNotice' : 'safeNotice') }}</span>
         </div>
 
+        <div v-if="linkedVariants.length" class="variant-notice">
+          <label><input v-model="applyToVariants" type="checkbox" data-variant-toggle><strong>{{ t('applyToVariants') }}</strong></label>
+          <p>{{ t('variantEditHelp') }}</p>
+          <details><summary>{{ t('compatibleVariants') }} ({{ linkedVariants.length + 1 }})</summary>
+            <ul><li v-for="entry in [selectedEntry, ...linkedVariants]" :key="entry.id">{{ entry.name }}</li></ul>
+          </details>
+        </div>
+        <div v-if="activeParameterGroup === 'workEquipment' && selectedEntry.parameters.some(parameter => ['sandCapacity', 'sandOperatingDistance'].includes(parameter.id))" class="safe-notice">
+          <strong>{{ t('protectedDumpZones') }}</strong><span>{{ t('protectedDumpZonesHelp') }}</span>
+        </div>
+
         <div v-if="selectedEntry.parameters.length === 0" class="no-parameters">
           {{ t('noParams') }}
         </div>
 
         <div v-for="group in visibleParameterGroups" :key="group.key" class="parameter-group">
           <h3>{{ t(group.key) }}</h3>
-          <article v-for="parameter in group.parameters" :key="parameter.id" class="parameter-card">
+          <article v-for="parameter in group.parameters" :key="parameter.id" class="parameter-card" :data-parameter-id="parameter.id">
             <div class="parameter-card__title">
               <strong>{{ t(parameter.labelKey) }}</strong>
               <span>{{ t('original') }}: {{ displayValue(parameter, parameter.original) }}</span>
@@ -211,6 +222,7 @@
               <span>{{ draftValues[parameter.id] ? t('enabled') : t('disabled') }}</span>
             </label>
             <p v-if="parameter.helpKey" class="parameter-help">{{ t(parameter.helpKey) }}</p>
+            <button v-if="parameter.id === 'sandOperatingDistance'" class="button button--secondary sand-map-preset" @click="applyRecommendation(parameter.id, 10000)">{{ t('wholeMapSand') }}</button>
             <div v-if="parameter.recommended" class="recommendations">
               <button @click="applyRecommendation(parameter.id, parameter.recommended.low)">
                 <small>{{ t('low') }}</small><strong>{{ parameter.recommended.low }}</strong>
@@ -230,7 +242,7 @@
 
             </div>
         <div v-if="selectedEntry.parameters.length" class="inspector__footer">
-          <button class="button button--secondary" :disabled="saving || !selectedEntry.modified" @click="restoreOriginal">
+          <button class="button button--secondary" :disabled="saving || !(selectedEntry.modified || applyToVariants && linkedVariants.some(entry => entry.modified))" @click="restoreOriginal">
             {{ t('restore') }}
           </button>
           <button class="button button--primary" :disabled="saving" @click="saveChanges">
@@ -397,7 +409,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import type { CompanyPaint, ContentEntry, ContentKind, EditableParameter, ParameterValue, SaveGameData, SaveSlotSummary, ScanResult } from '../shared'
-import { entryInSection } from '../shared'
+import { entryInSection, vehicleFamilyKey } from '../shared'
 import { locales, translate } from './i18n'
 import StartupJourney from './components/startup-journey.vue'
 import VehicleDrive from './components/vehicle-drive.vue'
@@ -416,6 +428,7 @@ const saving = ref(false)
 const scanResult = ref<ScanResult>()
 const selectedId = ref<string>()
 const draftValues = reactive<Record<string, ParameterValue>>({})
+const applyToVariants = ref(true)
 const activeParameterGroup = ref('engine')
 const toast = ref<{ type: 'success' | 'error'; message: string }>()
 const saveSlots = ref<SaveSlotSummary[]>([])
@@ -437,6 +450,12 @@ const saveSection = ref<SaveSection>('stats')
 const truckSearch = ref('')
 
 const selectedEntry = computed(() => scanResult.value?.entries.find(entry => entry.id === selectedId.value))
+const linkedVariants = computed(() => {
+  const selected = selectedEntry.value
+  const family = selected && vehicleFamilyKey(selected)
+  return !family ? [] : (scanResult.value?.entries ?? []).filter(entry => entry.id !== selected!.id
+    && entry.filePath === selected!.filePath && vehicleFamilyKey(entry) === family)
+})
 const navigation = computed(() => [
   { value: 'all' as const, icon: '▦', label: t('all'), count: scanResult.value?.entries.length ?? 0 },
   { value: 'truck' as const, icon: '◰', label: t('vehicles'), count: countByKind('truck') },
@@ -519,6 +538,7 @@ async function chooseInstall() {
 }
 
 function selectEntry(entry: ContentEntry) {
+  if (selectedId.value !== entry.id) applyToVariants.value = true
   selectedId.value = entry.id
   if (!entry.parameters.some(parameter => parameter.groupKey === activeParameterGroup.value)) {
     activeParameterGroup.value = entry.parameters[0]?.groupKey ?? 'engine'
@@ -547,10 +567,10 @@ async function saveChanges() {
   saving.value = true
   const currentId = selectedEntry.value.id
   try {
-    const result = await window.roadcraft.save({ filePath: currentId, values: { ...draftValues } })
+    const result = await window.roadcraft.save({ filePath: currentId, values: { ...draftValues }, applyToVariants: applyToVariants.value })
     if (!result.ok) throw new Error(result.message)
     await scan()
-    showToast('success', t('successSaved'))
+    showToast('success', `${t('successSaved')} ${result.affectedIds?.length ?? 1} ${t('variantsUpdated')}`)
   } catch (error) {
     showError(error)
   } finally {
@@ -562,7 +582,7 @@ async function restoreOriginal() {
   if (!selectedEntry.value) return
   saving.value = true
   try {
-    const result = await window.roadcraft.restore(selectedEntry.value.id)
+    const result = await window.roadcraft.restore(selectedEntry.value.id, applyToVariants.value)
     if (!result.ok) throw new Error(result.message)
     await scan()
     showToast('success', t('successRestored'))

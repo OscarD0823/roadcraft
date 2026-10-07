@@ -17,6 +17,11 @@ export const locales = [
 ]
 
 const en: Record<string, string> = {
+  applyToVariants: 'Also apply to compatible variants', compatibleVariants: 'Linked configurations', variantsUpdated: 'configuration(s) updated.',
+  variantEditHelp: 'Only changed settings are copied. Mechanical numbers keep the same percentage relative to each original; work radii and switches use the same value. Missing equipment, base copies and mission convoys are excluded. Restore returns each configuration to its own original values.',
+  wholeMapSand: 'Whole-map supply · 10 km (experimental)', sandOperatingDistanceHelp: 'Supply radius, not a physical spreading width. Updates sandDistance, the distance checker and focusDistance together. 10,000 m is intended to cover standard maps; larger mods may exceed it. Keep the scalper deployed. Not tested in a live game and does not remove protected terrain zones.',
+  sandAllowedPercentHelp: '0 removes the local ground-material ratio requirement for scalper activation, not protected dump zones.',
+  protectedDumpZones: 'Protected dump zones are not disabled', protectedDumpZonesHelp: 'Supply radius and local ground checks do not override map protections. Removing the permission component is unsafe: the dump controller requires it. No unsupported bypass is applied.',
   projectLinks: 'Author and project on GitHub', githubAuthor: 'Open @OscarD0823 on GitHub', githubRepository: 'Open the RoadCraft Studio repository on GitHub',
   companyPaintTitle: 'Company paint · preview only', companyPaintHelp: 'Colours and native paint masks from the selected save are used in the 3D view; the logo uses these colours in its illustration. This does not change the game or save. Company decals are not reproduced.',
   companyPaintMissing: 'No supported company paint was found in this save or local material library. The original appearance is retained.', companyPaintApplied: 'Company paint · local preview', companyPaintPartial: 'Company paint partially supported · original materials retained where no compatible mask exists',
@@ -80,6 +85,11 @@ const en: Record<string, string> = {
 
 const es: Record<string, string> = {
   ...en,
+  applyToVariants: 'Aplicar también a las variantes compatibles', compatibleVariants: 'Configuraciones vinculadas', variantsUpdated: 'configuración(es) actualizada(s).',
+  variantEditHelp: 'Solo se copian los ajustes cambiados. Los valores mecánicos conservan el mismo porcentaje respecto a cada original; radios y opciones usan el mismo valor. No se añade equipo inexistente ni se incluyen copias base o convoyes de misión. Restaurar devuelve cada configuración a sus propios originales.',
+  wholeMapSand: 'Suministro para todo el mapa · 10 km (experimental)', sandOperatingDistanceHelp: 'Radio de suministro, no ancho físico de vertido. Sincroniza sandDistance, el comprobador de distancia y focusDistance. 10.000 m está pensado para abarcar mapas estándar; un mod más grande podría superarlo. Mantén desplegado el ZikZ. Sin verificar en partida; no elimina las zonas protegidas del terreno.',
+  sandAllowedPercentHelp: '0 elimina la proporción mínima de material del suelo para activar el ZikZ, no las zonas protegidas de vertido.',
+  protectedDumpZones: 'No se desactivan las zonas protegidas de vertido', protectedDumpZonesHelp: 'El radio de suministro y las comprobaciones locales del suelo no anulan las protecciones del mapa. Quitar el componente de permisos es inseguro: el controlador del volquete lo necesita. No se aplica un bypass sin verificar.',
   projectLinks: 'Autor y proyecto en GitHub', githubAuthor: 'Abrir el perfil de @OscarD0823 en GitHub', githubRepository: 'Abrir el repositorio de RoadCraft Studio en GitHub',
   companyPaintTitle: 'Pintura de la empresa · solo vista previa', companyPaintHelp: 'Los colores y las máscaras originales de la partida seleccionada se usan en el visor 3D; el logo usa esos colores en su ilustración. No cambia el juego ni la partida. Los emblemas de empresa no se reproducen.',
   companyPaintMissing: 'No se encontró una pintura de empresa compatible en esta partida o en la biblioteca local. Se conserva el aspecto original.', companyPaintApplied: 'Pintura de empresa · vista previa local', companyPaintPartial: 'Pintura parcialmente compatible · se conservan los materiales sin máscara compatible',

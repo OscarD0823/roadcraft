@@ -20,6 +20,14 @@ Se separan las entregas habituales (`regularPool`) y las pruebas de ruta (`testP
 
 `buyCost` y `rankToUnlock` proceden de la biblioteca, no de la partida. Las variantes `old` y el tag real `UID_MODULE_*_RUSTY` identifican configuraciones recuperadas/oxidadas. Los precios de prueba de esas variantes no prueban que puedan comprarse. `buyCost = -1` tampoco prueba uso exclusivo de IA: existen variantes de misión, prototipos y maquinaria especial.
 
+### Arena y variantes vinculadas (0.8.8)
+
+La inspección de los `.cls` instalados confirmó copias separadas old/restauradas: por ejemplo Baikal 65206 y ZikZ 605E Mobile Scalper. Los Wayfarer OFT96 D/T comparten identificador de chasis, pero no el equipo; ST7050 es otra familia, con tractor y tráilers separados. La vinculación usa marca+identificador de chasis, o la correspondencia exacta old/res/new cuando el identificador no sigue ese formato, y aplica solo parámetros existentes con la misma especificación. No copia modelos, cajas, grúas, ruedas, etiquetas de misión ni campos ajenos al editor. Los prefijos base y las referencias logísticas excluyen la configuración del grupo automático.
+
+`sandDistance` configura el suministro del ZikZ, no un vertido físico sobre 10 km. El preset experimental de 10.000 m sincroniza también `UsableCheckerDistance.distance` y `focusDistance`. Se respaldan y restauran por separado, aunque antes tengan valores distintos. La documentación oficial describe [Sand Distance como radio de acceso al recurso](https://roadcraft-modding.prismray.io/scene_components/prefabs/buildings_and_vehicles/). La cobertura y el comportamiento a 10 km siguen sin probarse en partida.
+
+Los volquetes instalados contienen `prop_terraforming_permission_checker` y `prop_load_volume_permission_checker`. La tabla de símbolos de `ssl/game/truck/prop_load_volume_controller_release.sslbin` declara `propPermissionChecker` y `propLoadVolumePermission` en el grupo `require`, no `optional`. `PropTerraformingPermissionChecker` consulta `PropDomain` y un estado replicado; son controles distintos al ratio de suelo `allowedPercent` del ZikZ. **No se elimina el componente ni se publica una opción que prometa quitar las zonas prohibidas**: rompería una dependencia y no hay un ajuste validado para anular esas zonas. Tampoco se parchean bytecodes o escenas compiladas. La documentación oficial confirma que el [terreno tiene sus propios controles de arena, barro y terraformación](https://roadcraft-modding.prismray.io/scene_components/terrain/).
+
 Las recompensas de escenario `SpawnTruck` incluyen `UnlockTruck`, `TruckName`, `TruckTag` y restricciones de recuperación. Por eso la disponibilidad efectiva depende también de objetivos, mapa, DLC y estado de la partida. El editor informa sobre la configuración; no inventa una misión de desbloqueo ni modifica la flota al mostrarla.
 
 - [Recompensas de vehículos](https://roadcraft-modding.prismray.io/scene_components/objective_system/rewards/)

@@ -73,12 +73,24 @@ export function entryInSection(entry: ContentEntry, kind: ContentKind) {
 export interface SavePayload {
   filePath: string
   values: Record<string, ParameterValue>
+  applyToVariants?: boolean
 }
 
 export interface OperationResult {
   ok: boolean
   message?: string
   backupPath?: string
+  affectedIds?: string[]
+}
+
+/** Same chassis, not same brand. Base/mission copies stay out of linked edits. */
+export function vehicleFamilyKey(entry: Pick<ContentEntry, 'internalName' | 'kind' | 'sourceType' | 'access'>): string | undefined {
+  if (entry.sourceType !== 'pak' || entry.access?.baseVariant || entry.access?.logistics?.length
+    || !['truck', 'trailer'].includes(entry.kind) || /(?:^|_)ai(?:_|$)/i.test(entry.internalName)) return
+  const name = entry.internalName.toLowerCase().replace(/^auto_/, '')
+  const chassis = /^([a-z]+_[a-z]*\d[a-z0-9]*)_/.exec(name)?.[1]
+  // Unknown identifiers only join their exact old/restored/new counterpart.
+  return `${entry.kind}:${chassis ?? name.replace(/_(?:old|res|new)$/, '')}`
 }
 
 export interface SaveSlotSummary {
@@ -187,7 +199,7 @@ export interface RoadCraftApi {
   scan(): Promise<ScanResult>
   chooseInstall(): Promise<ScanResult | undefined>
   save(payload: SavePayload): Promise<OperationResult>
-  restore(filePath: string): Promise<OperationResult>
+  restore(filePath: string, applyToVariants?: boolean): Promise<OperationResult>
   chooseImage(filePath: string): Promise<string | undefined>
   openFile(filePath: string): Promise<void>
   openSourceFolder(): Promise<void>

@@ -98,6 +98,12 @@ export async function replaceTextEntry(
   targetEntryName: string,
   replacement: string
 ) {
+  return replaceTextEntries(archivePath, new Map([[targetEntryName, replacement]]))
+}
+
+/** Verify every replacement before the single archive swap; no half-edited family. */
+export async function replaceTextEntries(archivePath: string, replacements: ReadonlyMap<string, string>) {
+  if (!replacements.size) return
   const temporaryPath = join(dirname(archivePath), `.roadcraft-studio-${randomUUID()}.tmp`)
   const rollbackPath = join(dirname(archivePath), `.roadcraft-studio-${randomUUID()}.rollback`)
   const sourceArchive = await openPromise(archivePath, {
@@ -111,7 +117,9 @@ export async function replaceTextEntry(
   outputArchive.outputStream.on('error', error => destination.destroy(error))
   outputArchive.outputStream.pipe(destination)
   const destinationFinished = finished(destination)
-  let replaced = false
+  // Observe errors even if an input stream fails before we reach the await below.
+  void destinationFinished.catch(() => {})
+  const replaced = new Set<string>()
 
   try {
     for await (const entry of sourceArchive.eachEntry()) {
@@ -120,9 +128,11 @@ export async function replaceTextEntry(
         continue
       }
 
-      if (entry.fileName === targetEntryName) {
+      if (replacements.has(entry.fileName)) {
+        if (replaced.has(entry.fileName)) throw new Error('El paquete contiene una ruta duplicada.')
+        const replacement = replacements.get(entry.fileName)!
         outputArchive.addBuffer(Buffer.from(replacement, 'utf8'), entry.fileName, entryOptions(entry))
-        replaced = true
+        replaced.add(entry.fileName)
         continue
       }
 
@@ -138,12 +148,12 @@ export async function replaceTextEntry(
     outputArchive.end({ comment: sourceArchive.comment || '', forceZip64Format: false })
     await destinationFinished
 
-    if (!replaced) {
-      throw new Error(`No se encontró ${targetEntryName} dentro del paquete.`)
+    if (replaced.size !== replacements.size) {
+      throw new Error('No se encontraron todas las variantes dentro del paquete.')
     }
 
-    const verification = await readMatchingTextEntries(temporaryPath, name => name === targetEntryName)
-    if (verification.length !== 1 || verification[0].content !== replacement) {
+    const verification = await readMatchingTextEntries(temporaryPath, name => replacements.has(name))
+    if (verification.length !== replacements.size || verification.some(entry => entry.content !== replacements.get(entry.entryName))) {
       throw new Error('La verificación del paquete reconstruido no coincidió con el contenido guardado.')
     }
 

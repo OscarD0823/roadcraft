@@ -45,6 +45,9 @@ jobs:
       - name: Validar carga de arena, copia y restauración
         run: npm run test:sand
 
+      - name: Validar variantes vinculadas y controles de arena
+        run: npm run test:linked-work
+
       - name: Crear instalador
         run: npm run make
 

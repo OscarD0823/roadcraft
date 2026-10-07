@@ -62,7 +62,7 @@ function registerHandlers(service: RoadCraftService) {
   ipcMain.handle('roadcraft:scan', () => service.scan())
   ipcMain.handle('roadcraft:choose-install', () => service.chooseInstall())
   ipcMain.handle('roadcraft:save', (_event, payload: SavePayload) => service.save(payload))
-  ipcMain.handle('roadcraft:restore', (_event, filePath: string) => service.restore(filePath))
+  ipcMain.handle('roadcraft:restore', (_event, filePath: string, applyToVariants?: boolean) => service.restore(filePath, applyToVariants))
   ipcMain.handle('roadcraft:choose-image', (_event, filePath: string) => service.chooseImage(filePath))
   ipcMain.handle('roadcraft:open-file', (_event, filePath: string) => service.openFile(filePath))
   ipcMain.handle('roadcraft:open-source-folder', () => service.openSourceFolder())

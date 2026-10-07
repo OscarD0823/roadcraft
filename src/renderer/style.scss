@@ -89,6 +89,13 @@ button { cursor: pointer; }
 .project-links a:hover { color:#ffb46e;text-decoration:underline; }
 .project-links a:focus-visible { outline:2px solid #ffb46e;outline-offset:2px;color:#fff; }
 .project-links svg { width:13px;height:13px;flex:none; }
+.variant-notice { margin:12px 0;padding:12px;border:1px solid #c8d9e5;border-radius:12px;background:#edf5fa;font-size:12px; }
+.variant-notice label { display:flex;align-items:center;gap:8px;cursor:pointer; }
+.variant-notice input { accent-color:#f97316; }
+.variant-notice p { color:#526679;line-height:1.5;margin:8px 0; }
+.variant-notice summary { cursor:pointer; }
+.variant-notice ul { padding-left:20px;line-height:1.7;overflow-wrap:anywhere; }
+.sand-map-preset { margin:8px 0;width:100%;white-space:normal; }
 .project-version { color:#91a2ba;font-size:10px; }
 
 .nav-button {
