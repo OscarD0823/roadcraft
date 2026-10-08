@@ -12,7 +12,7 @@
           </nav>
         </div>
       </div>
-      <StartupJourney loop :paint="companyPaint" class="workspace-journey" />
+      <GameBrief :t="t" :paint="companyPaint" />
       <div class="topbar__actions">
         <button class="icon-button" :class="{ 'road-mode-active': roadStatus?.status === 'enabled' }" :title="t('freeRoads')" :aria-label="t('freeRoads')" data-road-menu @click="roadPanel = true">🛣</button>
         <label class="language-select" :title="t('language')">
@@ -76,7 +76,6 @@
 
     <main v-if="view !== 'save'" class="main-shell" :class="{ 'main-shell--inspector': selectedEntry }">
       <section v-show="!selectedEntry" class="library-panel">
-        <GameBrief :t="t" :paint="companyPaint" />
         <div class="toolbar">
           <h2 class="section-title">{{ navigation.find(item => item.value === view)?.label }}</h2>
           <label class="search-box">
@@ -434,7 +433,6 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import type { CompanyPaint, ContentEntry, ContentKind, EditableParameter, ParameterValue, SaveGameData, SaveSlotSummary, ScanResult, RoadZoneStatus } from '../shared'
 import { entryInSection, vehicleFamilyKey } from '../shared'
 import { locales, translate } from './i18n'
-import StartupJourney from './components/startup-journey.vue'
 import VehicleDrive from './components/vehicle-drive.vue'
 import RoadZonesPanel from './components/road-zones-panel.vue'
 import GameBrief from './components/game-brief.vue'

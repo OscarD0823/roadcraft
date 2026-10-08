@@ -2,12 +2,13 @@
 
 [Portada](README.md) · [Documentación](docs/README.md) · [Última descarga](https://github.com/OscarD0823/roadcraft/releases/latest)
 
-## Versión actual: 0.9.2
+## Versión actual: 0.9.3
 
-Carreteras libres y suministro del ZikZ sin etiqueta experimental, tras la comprobación en partida reportada por el usuario. Ajustes y borradores compartidos para el mismo archivo entre Vehículos, Logística y Modificados, con protección frente a cambios externos. Conserva copias, restauración y límites.
+Biblioteca sin el panel grande de presentación: lema y una única animación compacta en la cabecera, con más espacio para vehículos y ajustes. Conserva carreteras libres, arena, borradores compartidos, copias y restauración.
 
 ## Notas disponibles
 
+- [0.9.3](docs/releases/0.9.3.md)
 - [0.9.2](docs/releases/0.9.2.md)
 - [0.9.1](docs/releases/0.9.1.md) — preparación no publicada; sustituida por 0.9.2.
 - [0.9.0](docs/releases/0.9.0.md)
