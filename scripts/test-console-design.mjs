@@ -32,6 +32,16 @@ export async function testConsoleDesign({ evaluate, call, output, game }) {
   await call('Emulation.setDeviceMetricsOverride', { width:600,height:520,deviceScaleFactor:1,mobile:false })
   const compact=await evaluate(`document.querySelector(${JSON.stringify(game === 'roadcraft' ? '.content-grid' : '.list')}).getBoundingClientRect().height`)
   assert(compact > 120, 'Library is unusable on a short split screen')
+  await evaluate(`document.querySelectorAll('.nav-button')[6].click()`)
+  await evaluate('new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))')
+  for(const width of [600,960,1366]) {
+    await call('Emulation.setDeviceMetricsOverride',{width,height:700,deviceScaleFactor:1,mobile:false})
+    const saveLayout=await evaluate(`(()=>{const r=document.querySelector('.save-shell').getBoundingClientRect();return {right:r.right,bottom:r.bottom,height:r.height,overflow:document.documentElement.scrollWidth>innerWidth}})()`)
+    assert.equal(saveLayout.overflow,false,'Save console overflows at '+width)
+    assert(saveLayout.right<=width+1&&saveLayout.bottom<=701&&saveLayout.height>200,'Save workspace misplaced: '+JSON.stringify(saveLayout))
+    const capture=await call('Page.captureScreenshot',{format:'png'});await writeFile(join(output,'save-console-'+width+'.png'),Buffer.from(capture.data,'base64'))
+  }
+  await evaluate(`document.querySelectorAll('.nav-button')[0].click()`)
   await call('Emulation.clearDeviceMetricsOverride')
   await writeFile(join(output, 'console-design-results.json'), JSON.stringify(results,null,2))
   return results
