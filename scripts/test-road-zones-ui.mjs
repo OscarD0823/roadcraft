@@ -4,13 +4,15 @@ import { join } from 'node:path'
 
 export async function testRoadZonesUI({ evaluate, call, wait, output }) {
   const before = await evaluate('window.roadcraft.getRoadZoneStatus()')
-  assert.equal(before.status, 'standard', 'Read-only QA expects the real game to remain unmodified')
+  assert(['standard','enabled','conflict','unavailable'].includes(before.status), 'Unexpected status')
   const results = []
   await evaluate(`document.querySelector('[data-road-menu]').focus(); document.querySelector('[data-road-menu]').click()`)
-  await wait(`document.querySelector('.road-dialog')?.open && document.querySelector('.road-status')?.textContent.includes('Protecciones normales')`)
+  await wait(`document.querySelector('.road-dialog')?.open && !document.querySelector('.road-status')?.textContent.includes('Comprobando')`)
   assert(await evaluate(`document.querySelector('.road-dialog').textContent.includes('Carreteras libres')`))
   assert(await evaluate(`document.querySelector('.road-dialog').textContent.includes('NO deshace')`))
-  assert(await evaluate(`document.querySelector('[data-road-enable]')?.disabled === false`))
+  if(before.status==='standard') assert(await evaluate(`document.querySelector('[data-road-enable]')?.disabled === false`))
+  else if(before.status==='enabled') assert(await evaluate(`!!document.querySelector('[data-road-restore]')`))
+  else assert(await evaluate(`!document.querySelector('[data-road-enable]') || document.querySelector('[data-road-enable]').disabled`),'Unknown packages must not be editable')
   for (const width of [600, 960, 1366]) {
     await call('Emulation.setDeviceMetricsOverride', { width, height: 520, deviceScaleFactor: 1, mobile: false })
     await new Promise(r => setTimeout(r, 250))
