@@ -1,6 +1,6 @@
 # RoadCraft Studio
 
-## Versión 0.9.1 · Carreteras libres y ediciones compartidas
+## Versión 0.9.2 · Carreteras libres y ediciones compartidas
 
 - Carreteras libres y el suministro del ZikZ a 10 km dejan de llevar etiqueta experimental, tras la comprobación en partida reportada por el usuario. Se conservan los límites, copias y restauración; no se promete compatibilidad universal con otros mapas/mods.
 - Un vehículo compartido por jugador y Logística usa una sola configuración: los valores guardados y los borradores son los mismos en ambas secciones y en Modificados.
@@ -15,7 +15,7 @@
 - Si un mod o una actualización cambia esa clase, se bloquea la operación para no sobrescribirlo. Nunca se activa al instalar o iniciar el programa.
 - Los errores y cancelaciones se muestran dentro del panel, incluso cuando el juego está abierto.
 
-La prueba del usuario confirma que funciona en su partida. No garantiza construir en cualquier coordenada: las obras activas, materiales, agua, colisiones y máscaras compiladas pueden mantener sus límites. Restaurar las zonas no deshace arena/asfalto guardados. Respalda también tu partida y úsalo en solitario. [Detalles de la versión actual](RELEASE_NOTES_0.9.1.md).
+La prueba del usuario confirma que funciona en su partida. No garantiza construir en cualquier coordenada: las obras activas, materiales, agua, colisiones y máscaras compiladas pueden mantener sus límites. Restaurar las zonas no deshace arena/asfalto guardados. Respalda también tu partida y úsalo en solitario. [Detalles de la versión actual](RELEASE_NOTES_0.9.2.md).
 
 ### Mejoras de 0.8.8
 

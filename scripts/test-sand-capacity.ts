@@ -57,6 +57,7 @@ async function main() {
     assert.equal((await service.restore(id)).ok,true)
     assert.equal((await readMatchingTextEntries(packagePath,n=>n===cls))[0].content,source)
     console.log('Sand capacity: units, presets, invalid/oversized rejection, exact ZIP save, backup, original limit and restore verified on a synthetic package.')
-  } finally {await rm(temporary,{recursive:true,force:true})}
+  // Electron can finish writing its shader cache just as this owned fixture is removed on Windows.
+  } finally {await rm(temporary,{recursive:true,force:true,maxRetries:10,retryDelay:100})}
 }
 void main().then(()=>app.exit(0)).catch(error=>{console.error(error);app.exit(1)})

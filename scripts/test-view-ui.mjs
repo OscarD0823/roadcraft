@@ -68,6 +68,7 @@ try {
   const nativeWindow=JSON.parse(stdout.trim())
   assert.equal(nativeWindow.Visible,true,'Application loaded but its Windows window stayed hidden')
   assert.equal(nativeWindow.Title,'RoadCraft Studio')
+  assert.equal((await evaluate('window.roadcraft.getSettings()')).version,JSON.parse(await readFile(join(root,'package.json'),'utf8')).version,'Running app is not the version being distributed')
   const projectLinks=await testProjectLinks({evaluate,call,output,repository:'roadcraft'})
   const consoleDesign=await testConsoleDesign({evaluate,call,output,game:'roadcraft'})
   if(process.env.ROADCRAFT_ROADS_ERROR_ONLY==='1'){

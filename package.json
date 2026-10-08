@@ -1,7 +1,7 @@
 {
   "name": "roadcraft-studio",
   "productName": "RoadCraft Studio",
-  "version": "0.9.1",
+  "version": "0.9.2",
   "description": "Editor visual y seguro para vehículos, tráilers, convoyes logísticos y partidas de RoadCraft.",
   "main": ".vite/build/index.js",
   "author": {

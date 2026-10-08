@@ -165,6 +165,6 @@ ${mass ? `   prop_load_volume = {
     await assert.rejects(replaceTextEntries(packagePath, new Map([[cls(old), 'bad'], ['missing.cls', 'bad']])))
     assert.deepEqual(await readFile(packagePath), externallyChanged, 'Missing batch member partially changed the archive')
     console.log('Linked edits: proportional values, equipment compatibility, old/restored, convoy/base exclusion, 10km distance trio, permission components preserved, exact restore, rejection and atomic ZIP batch verified. No live game writes.')
-  } finally { await rm(temporary, { recursive: true, force: true }) }
+  } finally { await rm(temporary, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }) }
 }
 void main().then(() => app.exit(0)).catch(error => { console.error(error); app.exit(1) })
