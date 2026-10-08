@@ -17,6 +17,11 @@ export const locales = [
 ]
 
 const en: Record<string, string> = {
+  fleetWorkspace: 'RECONSTRUCTION WORKSPACE', operationLabel: 'ROADCRAFT · FIELD OPERATIONS',
+  operationTitle: 'Rebuild. Connect. Keep moving.',
+  operationHelp: 'Prepare your machinery to recover damaged infrastructure, shape the terrain and open supply routes.',
+  operationFlow: 'Game objectives, not live mission progress', operationClear: 'Clear & recover', operationBuild: 'Sand, level & pave', operationConnect: 'Connect logistics',
+  operationScene: 'Illustrated construction sequence · not a game simulation',
   freeRoads: 'Free roads', roadExperimental: 'EXPERIMENTAL · MAP ZONES',
   freeRoadsHelp: 'Test sand, grading, paving and rolling in areas marked non-terraformable. Changes the shared static map-zone class, not truck permission components. Applies to maps using that class; other mods may use different protections.',
   roadStatus_loading: 'Checking the local game…', roadStatus_standard: 'Standard map protections', roadStatus_enabled: 'Free roads enabled · experimental', roadStatus_conflict: 'External change detected · operation blocked', roadStatus_unavailable: 'No compatible map-zone class',
@@ -92,6 +97,11 @@ const en: Record<string, string> = {
 
 const es: Record<string, string> = {
   ...en,
+  fleetWorkspace: 'CENTRO DE RECONSTRUCCIÓN', operationLabel: 'ROADCRAFT · OPERACIONES DE CAMPO',
+  operationTitle: 'Reconstruye. Conecta. Avanza.',
+  operationHelp: 'Prepara tu maquinaria para recuperar infraestructuras, transformar el terreno y abrir rutas de suministro.',
+  operationFlow: 'Objetivos del juego, no progreso real de misiones', operationClear: 'Despejar y recuperar', operationBuild: 'Arena, nivelado y asfalto', operationConnect: 'Conectar la logística',
+  operationScene: 'Secuencia ilustrada de construcción · no simula el juego',
   freeRoads: 'Carreteras libres', roadExperimental: 'EXPERIMENTAL · ZONAS DEL MAPA',
   freeRoadsHelp: 'Prueba arena, nivelación, asfalto y compactación en áreas marcadas como no modificables. Cambia la clase común de zonas estáticas del mapa, no los permisos de los camiones. Afecta a los mapas que usan esa clase; otros mods podrían tener protecciones diferentes.',
   roadStatus_loading: 'Comprobando el juego local…', roadStatus_standard: 'Protecciones normales del mapa', roadStatus_enabled: 'Carreteras libres activado · experimental', roadStatus_conflict: 'Cambio externo detectado · operación bloqueada', roadStatus_unavailable: 'Sin clase de zonas compatible',

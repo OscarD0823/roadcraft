@@ -1,5 +1,5 @@
 <template>
-  <div class="app-frame" :dir="locale === 'ar' ? 'rtl' : 'ltr'">
+  <div class="app-frame" :class="{ 'app-frame--editing': selectedEntry, 'app-frame--save': view === 'save' }" :dir="locale === 'ar' ? 'rtl' : 'ltr'">
     <header class="topbar">
       <div class="brand">
         <img :src="iconUrl" alt="" class="brand__icon">
@@ -28,15 +28,18 @@
     </header>
 
     <section class="workspace-nav">
+      <span class="sidebar-caption">{{ t('fleetWorkspace') }}</span>
       <nav class="primary-nav" :aria-label="t('mainSections')">
         <button
           v-for="item in navigation"
           :key="item.value"
           class="nav-button"
           :class="{ 'nav-button--active': view === item.value }"
+          :aria-current="view === item.value ? 'page' : undefined"
+          :title="item.label"
           @click="view = item.value; selectedId = undefined"
         >
-          <span class="nav-button__icon">{{ item.icon }}</span>
+          <span class="nav-button__icon"><WorkspaceGlyph :section="item.value" /></span>
           <span>{{ item.label }}</span>
           <small>{{ item.count }}</small>
         </button>
@@ -71,7 +74,9 @@
 
     <main v-if="view !== 'save'" class="main-shell" :class="{ 'main-shell--inspector': selectedEntry }">
       <section v-show="!selectedEntry" class="library-panel">
+        <GameBrief :t="t" :paint="companyPaint" />
         <div class="toolbar">
+          <h2 class="section-title">{{ navigation.find(item => item.value === view)?.label }}</h2>
           <label class="search-box">
             <span>⌕</span>
             <input v-model="search" :placeholder="t('searchPlaceholder')">
@@ -417,6 +422,8 @@ import { locales, translate } from './i18n'
 import StartupJourney from './components/startup-journey.vue'
 import VehicleDrive from './components/vehicle-drive.vue'
 import RoadZonesPanel from './components/road-zones-panel.vue'
+import GameBrief from './components/game-brief.vue'
+import WorkspaceGlyph from './components/workspace-glyph.vue'
 import { PROJECT_LINKS, type ProjectLink } from '../project-links'
 
 type View = 'all' | 'truck' | 'trailer' | 'ai' | 'modified' | 'other' | 'save'

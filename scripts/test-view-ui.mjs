@@ -10,6 +10,7 @@ import { testCompanyPaint } from './test-company-ui.mjs'
 import { testProjectLinks } from './project-links-ui.mjs'
 import { testLinkedWork } from './test-linked-work-ui.mjs'
 import { testRoadZonesUI } from './test-road-zones-ui.mjs'
+import { testConsoleDesign } from './test-console-design.mjs'
 const root = dirname(dirname(fileURLToPath(import.meta.url))), output = process.env.ROADCRAFT_QA_OUTPUT ?? join(root, 'out', 'qa-ui'), port = 9335
 await mkdir(output, { recursive: true })
 // Preserve this isolated cache across Vite builds; never use the user's settings.
@@ -67,6 +68,7 @@ try {
   assert.equal(nativeWindow.Visible,true,'Application loaded but its Windows window stayed hidden')
   assert.equal(nativeWindow.Title,'RoadCraft Studio')
   const projectLinks=await testProjectLinks({evaluate,call,output,repository:'roadcraft'})
+  const consoleDesign=await testConsoleDesign({evaluate,call,output,game:'roadcraft'})
   if(process.env.ROADCRAFT_ROADS_ERROR_ONLY==='1'){
     await evaluate(`document.querySelector('[data-road-menu]').focus();document.querySelector('[data-road-menu]').click()`)
     await wait(`document.querySelector('.road-dialog')?.open && !document.querySelector('[data-road-enable]')?.disabled`)
