@@ -42,13 +42,16 @@ jobs:
       - name: Validar convoyes logísticos
         run: npm run test:logistics
 
+      - name: Validar borradores compartidos y cambios externos
+        run: npm run test:drafts
+
       - name: Validar carga de arena, copia y restauración
         run: npm run test:sand
 
       - name: Validar variantes vinculadas y controles de arena
         run: npm run test:linked-work
 
-      - name: Validar modo experimental de carreteras y restauración
+      - name: Validar carreteras libres y restauración
         run: npm run test:roads
 
       - name: Crear instalador

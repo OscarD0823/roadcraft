@@ -1,7 +1,7 @@
 <template>
   <dialog ref="panel" class="road-dialog" @cancel="cancel" @click="backdrop">
     <header>
-      <div><small>{{ t('roadExperimental') }}</small><h2>{{ t('freeRoads') }}</h2></div>
+      <div><small>{{ t('roadZoneLabel') }}</small><h2>{{ t('freeRoads') }}</h2></div>
       <button class="icon-button" :disabled="busy" :aria-label="t('roadClose')" @click="close">×</button>
     </header>
     <div class="road-dialog__body">

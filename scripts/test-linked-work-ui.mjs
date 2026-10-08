@@ -22,7 +22,7 @@ export async function testLinkedWork({ evaluate, call, wait, all, output }) {
   assert.equal(await evaluate(`document.querySelector('[data-parameter-id="sandOperatingDistance"] input').max`), '10000')
   await evaluate(`document.querySelector('.sand-map-preset').click()`)
   assert.equal(await evaluate(`document.querySelector('[data-parameter-id="sandOperatingDistance"] input').value`), '10000')
-  assert(await evaluate(`document.querySelector('.sand-map-preset').textContent.includes('experimental')`))
+  assert(await evaluate(`!document.querySelector('.sand-map-preset').textContent.includes('experimental')`))
   assert.equal(await evaluate(`document.querySelectorAll('[data-parameter-id="ignoreSandDumpRestrictions"]').length`), 0)
   const warning = await evaluate(`({work:document.querySelector('.parameter-tabs button.active')?.textContent,text:document.querySelector('.settings-scroll').textContent})`)
   assert(warning.text.includes('No se desactivan las zonas protegidas'), JSON.stringify(warning))

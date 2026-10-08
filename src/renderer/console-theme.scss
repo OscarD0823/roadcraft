@@ -175,3 +175,16 @@ button, input { accent-color: #f3bd64; }
 @media (prefers-reduced-motion: reduce) {
   .app-frame *, .app-frame *::before, .app-frame *::after { scroll-behavior: auto; transition: none !important; }
 }
+
+.app-frame .edited-badge--pending { color: #c7f3f0; background: #17615e; }
+.app-frame .draft-notice {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 16px; padding: 12px; border-radius: 12px;
+  border: 1px solid #327f79; background: #133a3a; color: #d8f4ef; overflow-wrap: anywhere;
+  font-size: 12px; line-height: 1.5;
+  > strong { flex: 1; }
+  .button { padding: 7px 10px; min-height: 32px; font-size: 11px; white-space: normal; }
+  > details, > span { flex-basis: 100%; }
+  summary { cursor: pointer; font-size: 11px; }
+  p { margin: 8px 0 0; }
+  &--conflict { background: #48351f; border-color: #bf9253; color: #fff1d6; }
+}

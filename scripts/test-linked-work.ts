@@ -7,7 +7,7 @@ import { finished } from 'node:stream/promises'
 import { ZipFile } from 'yazl'
 import { RoadCraftService, PAK_TRUCK_PARAMETERS } from '../src/main/roadcraft'
 import { readMatchingTextEntries, replaceTextEntries } from '../src/main/zip-package'
-import { vehicleFamilyKey } from '../src/shared'
+import { entryInSection, vehicleFamilyKey } from '../src/shared'
 import { translate } from '../src/renderer/i18n'
 
 async function main() {
@@ -68,9 +68,10 @@ ${mass ? `   prop_load_volume = {
   const base = 'auto_base_wayfarer_oft96_dump_old', ai = 'auto_wayfarer_oft96_delivery_ai'
   const trailer = 'auto_wayfarer_oft96_trailer_new', unrelated = 'auto_wayfarer_st7050_new'
   const scalperOld = 'auto_zikz_605e_mobile_scalper_old', scalperRes = 'auto_zikz_605e_mobile_scalper_res'
+  const shared = 'auto_shared_st100_cargo_main'
   const originals = new Map([[old, fixture(100, 40000)], [restored, fixture(200, 50000)], [crane, fixture(300)],
     [base, fixture(100, 40000)], [ai, fixture(100, 40000)], [trailer, fixture(100, 40000)],
-    [unrelated, fixture(100)], [scalperOld, fixture(100, undefined, 120)],
+    [unrelated, fixture(100)], [shared, fixture(150)], [scalperOld, fixture(100, undefined, 120)],
     [scalperRes, fixture(150, undefined, 140).replace('sandDistance = 140', 'sandDistance = 150').replace('focusDistance = 140', 'focusDistance = 160')]])
   try {
     await mkdir(join(temporary, 'root/paks/client/default'), { recursive: true })
@@ -90,7 +91,9 @@ ${mass ? `   prop_load_volume = {
         const parsed = service.createParameters(archived.content, PAK_TRUCK_PARAMETERS, name)
         service.catalog.set(name, { sourceType: 'pak', sourcePath: packagePath, archiveEntryName: archived.entryName, specs: parsed.specMap,
           entry: { id: name, name, internalName: name, kind: name === trailer ? 'trailer' : name === ai ? 'ai' : name === base ? 'other' : 'truck',
-            sourceType: 'pak', parameters: parsed.parameters, access: { baseVariant: name === base, logistics: name === ai ? [{ map: 'test' }] : undefined } } })
+            sourceType: 'pak', filePath: packagePath, modified: Boolean(service.settings.originalValues[name]), parameters: parsed.parameters,
+            access: { control: name === shared ? 'shared' : name === ai ? 'ai' : 'player', baseVariant: name === base,
+              logistics: name === ai || name === shared ? [{ map: 'test', role: 'delivery', cargoNames: [] }] : undefined } } })
       }
     }
     service.scan = refresh; await refresh()
@@ -98,9 +101,23 @@ ${mass ? `   prop_load_volume = {
     assert.equal(vehicleFamilyKey(service.catalog.get(base).entry), undefined)
     const source = async (name: string) => (await readMatchingTextEntries(packagePath, n => n === cls(name)))[0].content
     const value = (name: string, id: string) => service.catalog.get(name).entry.parameters.find((p: any) => p.id === id)?.value
+    const sharedWrite = await service.save({ filePath: shared, values: { engineTorque: 165 }, applyToVariants: true })
+    assert(sharedWrite.ok, sharedWrite.message); assert.deepEqual(sharedWrite.affectedIds, [shared])
+    const sharedEntry = service.catalog.get(shared).entry
+    assert(entryInSection(sharedEntry, 'truck')); assert(entryInSection(sharedEntry, 'ai'))
+    assert.equal(sharedEntry.modified, true); assert.equal(value(shared, 'engineTorque'), 165)
+    const sharedSettings = JSON.parse(await readFile(join(temporary, 'data/settings.json'), 'utf8'))
+    service.settings = sharedSettings; await refresh()
+    assert.equal(service.catalog.get(shared).entry.modified, true); assert.equal(value(shared, 'engineTorque'), 165)
+    assert.equal(service.settings.originalValues[shared].engineTorque, 150)
+    assert((await service.restore(shared)).ok); assert.equal(service.catalog.get(shared).entry.modified, false)
+    assert.equal(await source(shared), originals.get(shared))
+    await writeFile(packagePath + '.cache', 'original cache')
+    // ZIP container metadata can change after restoration; rejected edits preserve these exact current bytes.
+    const validationPackage = await readFile(packagePath)
     for (const bad of [10001, -1, Infinity, NaN, '']) {
       assert.equal((await service.save({ filePath: scalperOld, values: { sandOperatingDistance: bad }, applyToVariants: true })).ok, false)
-      assert.deepEqual(await readFile(packagePath), originalPackage)
+      assert.deepEqual(await readFile(packagePath), validationPackage)
       assert(existsSync(packagePath + '.cache'))
     }
     assert.equal((await service.save({ filePath: old, values: { unknown: 1 } })).ok, false)

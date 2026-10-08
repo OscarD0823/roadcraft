@@ -11,6 +11,7 @@ import { testProjectLinks } from './project-links-ui.mjs'
 import { testLinkedWork } from './test-linked-work-ui.mjs'
 import { testRoadZonesUI } from './test-road-zones-ui.mjs'
 import { testConsoleDesign } from './test-console-design.mjs'
+import { testEntryDrafts } from './test-entry-drafts-ui.mjs'
 const root = dirname(dirname(fileURLToPath(import.meta.url))), output = process.env.ROADCRAFT_QA_OUTPUT ?? join(root, 'out', 'qa-ui'), port = 9335
 await mkdir(output, { recursive: true })
 // Preserve this isolated cache across Vite builds; never use the user's settings.
@@ -102,6 +103,10 @@ try {
   }
   const scan=await evaluate('window.roadcraft.scan()')
   const all=scan.entries, images=[]
+  const drafts=await testEntryDrafts({evaluate,call,wait,all,output})
+  if(process.env.ROADCRAFT_DRAFTS_ONLY==='1'){
+    assert.deepEqual(errors,[]);console.log(JSON.stringify({nativeWindow,drafts,errors},null,2));return
+  }
   if(process.env.ROADCRAFT_LINKED_WORK_ONLY==='1'){
     const linked=await testLinkedWork({evaluate,call,wait,all,output})
     assert.deepEqual(errors,[]);console.log(JSON.stringify({nativeWindow,linked,errors},null,2));return
@@ -268,7 +273,7 @@ try {
   assert(shared,'Missing shared player/logistics configuration')
   await evaluate(`(()=>{const cards=[...document.querySelectorAll('.content-card')];cards.find(card=>card.textContent.includes(${JSON.stringify(shared.relativePath)})).click()})()`)
   await wait(`document.querySelector('.vehicle-drive')?.dataset.modelState === 'ready'`)
-  assert.match(await evaluate(`document.querySelector('.access-notice').textContent`),/los cambios afectan a los dos usos/)
+  assert.match(await evaluate(`document.querySelector('.access-notice').textContent`),/Al guardar se afectan los dos usos/)
   await evaluate(`document.querySelector('.logistics-evidence').open=true`)
   assert.ok(await evaluate(`document.querySelectorAll('.logistics-evidence li').length > 0`))
   shot=await call('Page.captureScreenshot',{format:'png'});await writeFile(join(output,'logistics-shared.png'),Buffer.from(shot.data,'base64'))
@@ -284,7 +289,7 @@ try {
   }
   await evaluate(`(()=>{const select=document.querySelector('.language-select select');select.value='es';select.dispatchEvent(new Event('change',{bubbles:true}))})()`)
   if(errors.length)throw new Error(errors.join('\n'))
-  const result={nativeWindow,counts,company,animation,base,source,layout,classification,images,previews,languages,errors,warnings};await writeFile(join(output,'results.json'),JSON.stringify(result,null,2));console.log(JSON.stringify({nativeWindow,counts,company,animation:animation.map(({fraction,label,visible})=>({fraction,label,visible})),base,source,layout,classification,images:images.length,missingImages:images.filter(i=>!i.image).map(i=>i.name),previews:previews.length,languages,errors,warnings},null,2))
+  const result={nativeWindow,counts,company,animation,drafts,base,source,layout,classification,images,previews,languages,errors,warnings};await writeFile(join(output,'results.json'),JSON.stringify(result,null,2));console.log(JSON.stringify({nativeWindow,counts,company,animation:animation.map(({fraction,label,visible})=>({fraction,label,visible})),base,source,layout,classification,images:images.length,missingImages:images.filter(i=>!i.image).map(i=>i.name),previews:previews.length,languages,errors,warnings},null,2))
 } finally {socket?.close();child.kill()}
 }
 await runQA()

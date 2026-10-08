@@ -23,7 +23,7 @@
             </option>
           </select>
         </label>
-        <button class="icon-button" :title="t('changePath')" @click="chooseInstall">⚙</button>
+        <button class="icon-button" :title="t('changePath')" :disabled="saving || loading" @click="chooseInstall">⚙</button>
       </div>
     </header>
 
@@ -37,6 +37,8 @@
           :class="{ 'nav-button--active': view === item.value }"
           :aria-current="view === item.value ? 'page' : undefined"
           :title="item.label"
+          :data-view="item.value"
+          :disabled="saving"
           @click="view = item.value; selectedId = undefined"
         >
           <span class="nav-button__icon"><WorkspaceGlyph :section="item.value" /></span>
@@ -86,6 +88,11 @@
         </div>
 
         <p v-if="view === 'ai'" class="library-note">{{ t('logisticsSectionHelp') }}</p>
+        <p v-if="view === 'modified'" class="library-note">{{ t('modifiedDraftHelp') }}</p>
+        <div v-if="missingDraftIds.length" class="library-note library-note--warning" role="status">
+          {{ t('missingDraftHelp') }} ({{ missingDraftIds.length }})
+          <button class="button button--secondary" @click="discardMissingDrafts">{{ t('discardMissingDrafts') }}</button>
+        </div>
         <p v-if="scanResult?.logisticsScanIncomplete" class="library-note library-note--warning">{{ t('logisticsScanIncomplete') }}</p>
 
         <div v-if="loading && !scanResult" class="center-state">
@@ -105,6 +112,7 @@
             :key="entry.id"
             class="content-card"
             :class="{ 'content-card--selected': entry.id === selectedEntry?.id }"
+            :data-entry-id="entry.id"
             @click="selectEntry(entry)"
           >
             <div class="content-card__media">
@@ -113,7 +121,7 @@
                 <span>{{ entry.kind === 'trailer' ? '▰' : entry.kind === 'ai' ? '⌁' : '◰' }}</span>
                 <small>{{ entry.sourceType === 'pak' ? '.CLS · PAK' : '.BRO' }}</small>
               </div>
-              <span v-if="entry.modified" class="edited-badge">✎ {{ t('edited') }}</span>
+              <span v-if="entry.modified || hasDraft(entry.id)" class="edited-badge" :class="{ 'edited-badge--pending': hasDraft(entry.id) }" :data-edit-state="hasDraft(entry.id) ? 'pending' : 'saved'">✎ {{ t(hasDraft(entry.id) ? 'unsaved' : 'edited') }}</span>
               <span class="kind-badge">{{ entry.access?.control === 'shared' ? t('sharedRouteBadge') : t(kindLabel(entry.kind)) }}</span>
             </div>
             <div class="content-card__body">
@@ -125,20 +133,20 @@
         </div>
       </section>
 
-      <aside v-if="selectedEntry" class="inspector">
+      <aside v-if="selectedEntry" class="inspector" :data-entry-id="selectedEntry.id">
         <div class="inspector__header">
           <div>
             <span class="eyebrow">{{ t('details') }}</span>
             <h2>{{ selectedEntry.name }}</h2>
             <p>{{ selectedEntry.internalName }}</p>
           </div>
-          <button class="button button--secondary" @click="selectedId = undefined">← {{ t('backToLibrary') }}</button>
+          <button class="button button--secondary" :disabled="saving" @click="selectedId = undefined">← {{ t('backToLibrary') }}</button>
         </div>
 
         <div class="inspector__meta">
           <span>{{ selectedEntry.category }}</span>
-          <span :class="{ 'meta-edited': selectedEntry.modified }">
-            {{ selectedEntry.modified ? t('edited') : selectedEntry.sourceType === 'pak' ? t('basePackage') : '.bro' }}
+          <span :class="{ 'meta-edited': selectedEntry.modified || hasDraft(selectedEntry.id) }" :data-edit-state="hasDraft(selectedEntry.id) ? 'pending' : selectedEntry.modified ? 'saved' : 'original'">
+            {{ hasDraft(selectedEntry.id) ? t('unsaved') : selectedEntry.modified ? t('edited') : selectedEntry.sourceType === 'pak' ? t('basePackage') : '.bro' }}
           </span>
           <span v-if="selectedEntry.access">{{ t(`control_${selectedEntry.access.control}`) }}</span>
           <span v-if="selectedEntry.access?.variant === 'rusty'">{{ t('rustyVariant') }}</span>
@@ -158,6 +166,12 @@
               </button>
             </nav>
             <div class="settings-scroll" tabindex="0">
+        <div v-if="hasDraft(selectedEntry.id)" class="draft-notice" :class="{ 'draft-notice--conflict': selectedDraft?.conflicts.length }" role="status" data-draft-notice>
+          <strong>{{ t(selectedDraft?.conflicts.length ? 'draftConflict' : 'unsaved') }}</strong>
+          <button class="button button--secondary" :disabled="saving" data-discard-draft @click="discardSelectedDraft">{{ t('discardDraft') }}</button>
+          <span v-if="selectedDraft?.conflicts.length">{{ t('draftConflictHelp') }}</span>
+          <details v-else><summary>{{ t('draftSessionLabel') }}</summary><p>{{ t('draftHelp') }}</p></details>
+        </div>
         <div v-if="selectedEntry.access" class="access-notice">
           <strong>{{ t(selectedEntry.access.logistics?.length ? 'aiRouteInfo' : selectedEntry.access.baseVariant ? 'unconfirmedBaseInfo' : `obtain_${selectedEntry.access.obtain}`) }}</strong>
           <span v-if="selectedEntry.access.logistics?.length">{{ t(selectedEntry.access.control === 'shared' ? 'sharedRouteHelp' : 'aiRouteHelp') }}</span>
@@ -179,7 +193,7 @@
         </div>
 
         <div v-if="linkedVariants.length" class="variant-notice">
-          <label><input v-model="applyToVariants" type="checkbox" data-variant-toggle><strong>{{ t('applyToVariants') }}</strong></label>
+          <label><input v-model="applyToVariants" type="checkbox" :disabled="saving" data-variant-toggle><strong>{{ t('applyToVariants') }}</strong></label>
           <p>{{ t('variantEditHelp') }}</p>
           <details><summary>{{ t('compatibleVariants') }} ({{ linkedVariants.length + 1 }})</summary>
             <ul><li v-for="entry in [selectedEntry, ...linkedVariants]" :key="entry.id">{{ entry.name }}</li></ul>
@@ -210,6 +224,7 @@
                   :min="parameter.minimum"
                   :max="parameter.maximum"
                   step="any"
+                  :disabled="saving"
                 >
               </label>
               <span class="unit">{{ parameter.unit }}</span>
@@ -217,7 +232,7 @@
             <div v-else-if="parameter.kind === 'select'" class="value-row">
               <label>
                 <span>{{ t('current') }}</span>
-                <select v-model="draftValues[parameter.id]">
+                <select v-model="draftValues[parameter.id]" :disabled="saving">
                   <option v-for="option in parameter.options" :key="option.value" :value="option.value">
                     {{ t(option.labelKey) }}
                   </option>
@@ -225,19 +240,19 @@
               </label>
             </div>
             <label v-else class="boolean-row">
-              <input v-model="draftValues[parameter.id]" type="checkbox">
+              <input v-model="draftValues[parameter.id]" type="checkbox" :disabled="saving">
               <span>{{ draftValues[parameter.id] ? t('enabled') : t('disabled') }}</span>
             </label>
             <p v-if="parameter.helpKey" class="parameter-help">{{ t(parameter.helpKey) }}</p>
-            <button v-if="parameter.id === 'sandOperatingDistance'" class="button button--secondary sand-map-preset" @click="applyRecommendation(parameter.id, 10000)">{{ t('wholeMapSand') }}</button>
+            <button v-if="parameter.id === 'sandOperatingDistance'" class="button button--secondary sand-map-preset" :disabled="saving" @click="applyRecommendation(parameter.id, 10000)">{{ t('wholeMapSand') }}</button>
             <div v-if="parameter.recommended" class="recommendations">
-              <button @click="applyRecommendation(parameter.id, parameter.recommended.low)">
+              <button :disabled="saving" @click="applyRecommendation(parameter.id, parameter.recommended.low)">
                 <small>{{ t('low') }}</small><strong>{{ parameter.recommended.low }}</strong>
               </button>
-              <button @click="applyRecommendation(parameter.id, parameter.recommended.medium)">
+              <button :disabled="saving" @click="applyRecommendation(parameter.id, parameter.recommended.medium)">
                 <small>{{ t('medium') }}</small><strong>{{ parameter.recommended.medium }}</strong>
               </button>
-              <button @click="applyRecommendation(parameter.id, parameter.recommended.high)">
+              <button :disabled="saving" @click="applyRecommendation(parameter.id, parameter.recommended.high)">
                 <small>{{ t('high') }}</small><strong>{{ parameter.recommended.high }}</strong>
               </button>
             </div>
@@ -252,7 +267,7 @@
           <button class="button button--secondary" :disabled="saving || !(selectedEntry.modified || applyToVariants && linkedVariants.some(entry => entry.modified))" @click="restoreOriginal">
             {{ t('restore') }}
           </button>
-          <button class="button button--primary" :disabled="saving" @click="saveChanges">
+          <button class="button button--primary" :disabled="saving || !!selectedDraft?.conflicts.length" data-save-entry @click="saveChanges">
             {{ saving ? t('saving') : t('save') }}
           </button>
         </div>
@@ -425,6 +440,7 @@ import RoadZonesPanel from './components/road-zones-panel.vue'
 import GameBrief from './components/game-brief.vue'
 import WorkspaceGlyph from './components/workspace-glyph.vue'
 import { PROJECT_LINKS, type ProjectLink } from '../project-links'
+import { createEntryDraft, hasPendingChanges, rebaseEntryDraft, type EntryDraft } from './entry-drafts'
 
 type View = 'all' | 'truck' | 'trailer' | 'ai' | 'modified' | 'other' | 'save'
 type SaveSection = 'stats' | 'trucks' | 'maps'
@@ -440,8 +456,13 @@ const loading = ref(false)
 const saving = ref(false)
 const scanResult = ref<ScanResult>()
 const selectedId = ref<string>()
-const draftValues = reactive<Record<string, ParameterValue>>({})
-const applyToVariants = ref(true)
+const entryDrafts = reactive<Record<string, EntryDraft>>({})
+const selectedDraft = computed(() => selectedId.value ? entryDrafts[selectedId.value] : undefined)
+const draftValues = computed(() => selectedDraft.value?.values ?? {})
+const applyToVariants = computed({
+  get: () => selectedDraft.value?.applyToVariants ?? true,
+  set: value => { if (selectedDraft.value) selectedDraft.value.applyToVariants = value }
+})
 const activeParameterGroup = ref('engine')
 const toast = ref<{ type: 'success' | 'error'; message: string }>()
 const saveSlots = ref<SaveSlotSummary[]>([])
@@ -463,6 +484,8 @@ const saveSection = ref<SaveSection>('stats')
 const truckSearch = ref('')
 
 const selectedEntry = computed(() => scanResult.value?.entries.find(entry => entry.id === selectedId.value))
+const missingDraftIds = computed(() => Object.keys(entryDrafts).filter(id => hasDraft(id)
+  && !scanResult.value?.entries.some(entry => entry.id === id)))
 const linkedVariants = computed(() => {
   const selected = selectedEntry.value
   const family = selected && vehicleFamilyKey(selected)
@@ -474,7 +497,7 @@ const navigation = computed(() => [
   { value: 'truck' as const, icon: '◰', label: t('vehicles'), count: countByKind('truck') },
   { value: 'trailer' as const, icon: '▰', label: t('trailers'), count: countByKind('trailer') },
   { value: 'ai' as const, icon: '⌁', label: t('aiVehicles'), count: countByKind('ai') },
-  { value: 'modified' as const, icon: '✎', label: t('modified'), count: scanResult.value?.entries.filter(entry => entry.modified).length ?? 0 },
+  { value: 'modified' as const, icon: '✎', label: t('modified'), count: scanResult.value?.entries.filter(entry => entry.modified || hasDraft(entry.id)).length ?? 0 },
   { value: 'other' as const, icon: '◇', label: t('other'), count: countByKind('other') },
   { value: 'save' as const, icon: '▣', label: t('saveGames'), count: saveSlots.value.length }
 ])
@@ -482,7 +505,7 @@ const filteredEntries = computed(() => {
   const query = search.value.trim().toLowerCase()
   return (scanResult.value?.entries ?? []).filter(entry => {
     const matchesView = view.value === 'all'
-      || (view.value === 'modified' ? entry.modified : view.value !== 'save' && entryInSection(entry, view.value))
+      || (view.value === 'modified' ? entry.modified || hasDraft(entry.id) : view.value !== 'save' && entryInSection(entry, view.value))
     const matchesSearch = !query || `${entry.name} ${entry.internalName} ${entry.relativePath}`.toLowerCase().includes(query)
     return matchesView && matchesSearch
   })
@@ -526,14 +549,31 @@ function countByKind(kind: ContentKind) {
   return scanResult.value?.entries.filter(entry => entryInSection(entry, kind)).length ?? 0
 }
 
+function hasDraft(id: string) { return hasPendingChanges(entryDrafts[id]) }
+
+function discardSelectedDraft() {
+  if (!saving.value && selectedEntry.value) entryDrafts[selectedEntry.value.id] = createEntryDraft(selectedEntry.value)
+}
+
+function discardMissingDrafts() {
+  for (const id of missingDraftIds.value) delete entryDrafts[id]
+}
+
+function acceptScan(result: ScanResult) {
+  for (const entry of result.entries) {
+    const draft = entryDrafts[entry.id]
+    if (draft) rebaseEntryDraft(draft, entry)
+  }
+  scanResult.value = result
+  const selected = result.entries.find(entry => entry.id === selectedId.value)
+  if (selected) selectEntry(selected)
+  else selectedId.value = undefined
+}
+
 async function scan() {
   loading.value = true
   try {
-    const keepSelected = selectedId.value
-    scanResult.value = await window.roadcraft.scan()
-    if (keepSelected && scanResult.value.entries.some(entry => entry.id === keepSelected)) {
-      selectEntry(scanResult.value.entries.find(entry => entry.id === keepSelected)!)
-    }
+    acceptScan(await window.roadcraft.scan())
   } catch (error) {
     showError(error)
   } finally {
@@ -542,22 +582,26 @@ async function scan() {
 }
 
 async function chooseInstall() {
+  if (saving.value || loading.value) return
+  if (Object.values(entryDrafts).some(hasPendingChanges)) {
+    showToast('error', t('pendingBeforePath'))
+    return
+  }
   try {
     const result = await window.roadcraft.chooseInstall()
-    if (result) scanResult.value = result
+    if (result) { for (const id of Object.keys(entryDrafts)) delete entryDrafts[id]; acceptScan(result) }
   } catch (error) {
     showError(error)
   }
 }
 
 function selectEntry(entry: ContentEntry) {
-  if (selectedId.value !== entry.id) applyToVariants.value = true
+  if (saving.value && selectedId.value !== entry.id) return
+  entryDrafts[entry.id] ??= createEntryDraft(entry)
   selectedId.value = entry.id
   if (!entry.parameters.some(parameter => parameter.groupKey === activeParameterGroup.value)) {
     activeParameterGroup.value = entry.parameters[0]?.groupKey ?? 'engine'
   }
-  for (const key of Object.keys(draftValues)) delete draftValues[key]
-  for (const parameter of entry.parameters) draftValues[parameter.id] = parameter.value
 }
 
 function setParameterGroup(group: string) {
@@ -572,17 +616,20 @@ function handleImageError(entry: ContentEntry) {
 }
 
 function applyRecommendation(parameterId: string, value: number) {
-  draftValues[parameterId] = value
+  if (!saving.value) draftValues.value[parameterId] = value
 }
 
 async function saveChanges() {
-  if (!selectedEntry.value) return
+  if (!selectedEntry.value || saving.value || selectedDraft.value?.conflicts.length) return
   saving.value = true
   const currentId = selectedEntry.value.id
   try {
-    const result = await window.roadcraft.save({ filePath: currentId, values: { ...draftValues }, applyToVariants: applyToVariants.value })
+    const result = await window.roadcraft.save({ filePath: currentId, values: { ...draftValues.value }, applyToVariants: applyToVariants.value })
     if (!result.ok) throw new Error(result.message)
-    await scan()
+    const refreshed = await window.roadcraft.scan()
+    // Only the submitted draft is cleared. Other variants retain their own pending work.
+    delete entryDrafts[currentId]
+    acceptScan(refreshed)
     showToast('success', `${t('successSaved')} ${result.affectedIds?.length ?? 1} ${t('variantsUpdated')}`)
   } catch (error) {
     showError(error)
@@ -592,12 +639,15 @@ async function saveChanges() {
 }
 
 async function restoreOriginal() {
-  if (!selectedEntry.value) return
+  if (!selectedEntry.value || saving.value) return
   saving.value = true
+  const currentId = selectedEntry.value.id
   try {
-    const result = await window.roadcraft.restore(selectedEntry.value.id, applyToVariants.value)
+    const result = await window.roadcraft.restore(currentId, applyToVariants.value)
     if (!result.ok) throw new Error(result.message)
-    await scan()
+    const refreshed = await window.roadcraft.scan()
+    delete entryDrafts[currentId]
+    acceptScan(refreshed)
     showToast('success', t('successRestored'))
   } catch (error) {
     showError(error)

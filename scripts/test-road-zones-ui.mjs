@@ -10,6 +10,7 @@ export async function testRoadZonesUI({ evaluate, call, wait, output }) {
   await wait(`document.querySelector('.road-dialog')?.open && !document.querySelector('.road-status')?.textContent.includes('Comprobando')`)
   assert(await evaluate(`document.querySelector('.road-dialog').textContent.includes('Carreteras libres')`))
   assert(await evaluate(`document.querySelector('.road-dialog').textContent.includes('NO deshace')`))
+  assert(await evaluate(`!/experimental|beta|Sin verificar/i.test(document.querySelector('.road-dialog').textContent)`), 'Validated roads still labelled experimental')
   if(before.status==='standard') assert(await evaluate(`document.querySelector('[data-road-enable]')?.disabled === false`))
   else if(before.status==='enabled') assert(await evaluate(`!!document.querySelector('[data-road-restore]')`))
   else assert(await evaluate(`!document.querySelector('[data-road-enable]') || document.querySelector('[data-road-enable]').disabled`),'Unknown packages must not be editable')

@@ -1,20 +1,28 @@
 # RoadCraft Studio
 
-## Versión 0.8.10 · Carreteras libres (experimental)
+## Versión 0.9.1 · Carreteras libres y ediciones compartidas
 
-- Botón de carretera junto al idioma y acceso desde Equipo de trabajo para probar el desbloqueo de zonas estáticas no modificables del mapa.
+- Carreteras libres y el suministro del ZikZ a 10 km dejan de llevar etiqueta experimental, tras la comprobación en partida reportada por el usuario. Se conservan los límites, copias y restauración; no se promete compatibilidad universal con otros mapas/mods.
+- Un vehículo compartido por jugador y Logística usa una sola configuración: los valores guardados y los borradores son los mismos en ambas secciones y en Modificados.
+- Modificados incluye los borradores con la etiqueta **Sin guardar**. Se conservan durante esta sesión al cambiar de sección y buscar de nuevo; solo Guardar cambios escribe al juego. Cerrar el editor descarta lo pendiente. Descartar borrador no escribe al juego.
+- Al buscar de nuevo, los campos intactos se actualizan. Si un campo pendiente cambia externamente o desaparece, se conserva el borrador y se bloquea el guardado hasta descartarlo, evitando sobrescribir el cambio externo.
+- Las configuraciones diferentes de convoyes no se enlazan por tener un nombre/modelo parecido. Solo se comparten valores cuando es el mismo archivo.
+
+### Carreteras libres
+
+- Botón de carretera junto al idioma y acceso desde Equipo de trabajo para desbloquear zonas estáticas no modificables del mapa.
 - Se conserva el dominio del mapa y los permisos obligatorios de los vehículos. Confirmación explícita, juego cerrado, copia del paquete y restauración de la clase exacta sin perder cambios de camiones.
 - Si un mod o una actualización cambia esa clase, se bloquea la operación para no sobrescribirlo. Nunca se activa al instalar o iniciar el programa.
 - Los errores y cancelaciones se muestran dentro del panel, incluso cuando el juego está abierto.
 
-**Sin verificar en partida.** No garantiza construir en cualquier coordenada: las obras activas, materiales, agua, colisiones y máscaras compiladas pueden mantener sus límites. Restaurar las zonas no deshace arena/asfalto guardados. Respalda también tu partida y prueba en solitario. [Detalles de la versión](RELEASE_NOTES_0.8.10.md).
+La prueba del usuario confirma que funciona en su partida. No garantiza construir en cualquier coordenada: las obras activas, materiales, agua, colisiones y máscaras compiladas pueden mantener sus límites. Restaurar las zonas no deshace arena/asfalto guardados. Respalda también tu partida y úsalo en solitario. [Detalles de la versión actual](RELEASE_NOTES_0.9.1.md).
 
 ### Mejoras de 0.8.8
 
-- Radio del ZikZ Mobile Scalper hasta 10.000 m, con botón «Suministro para todo el mapa · 10 km (experimental)». Sincroniza las tres distancias; no cambia la geometría ni promete estabilidad en partida.
+- Radio del ZikZ Mobile Scalper hasta 10.000 m, ahora con botón «Suministro de gran alcance · 10 km». Sincroniza las tres distancias; no cambia la geometría ni el ancho físico de descarga.
 - Edición vinculada de variantes compatibles del mismo chasis, incluidas old/restauradas y familias Wayfarer. Se puede desactivar y consultar la lista antes de guardar. Solo copia ajustes cambiados; respeta diferencias mecánicas proporcionales y no añade equipos inexistentes ni edita copias base/convoyes.
 - Cada variante conserva sus originales. Los cambios de una familia se verifican y reemplazan en una sola operación del PAK; si algún valor no es válido, se rechaza el conjunto.
-- Los ajustes de arena del vehículo no desactivan las zonas protegidas. Desde 0.8.9, la prueba experimental se hace sobre la clase separada de zonas del mapa, conservando los permisos del camión.
+- Los ajustes de arena del vehículo no desactivan las zonas protegidas. Carreteras libres actúa sobre la clase separada de zonas del mapa, conservando los permisos del camión.
 
 ### Identidad de 0.8.7
 
