@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { testVehicleIcon } from './test-vehicle-icon-ui.mjs'
+import { testFieldConsole } from './test-field-console-ui.mjs'
 
 export async function testConsoleDesign({ evaluate, call, output, game = 'snowrunner' }) {
   await testVehicleIcon({ evaluate, call, output, game })
@@ -62,6 +63,7 @@ export async function testConsoleDesign({ evaluate, call, output, game = 'snowru
     await evaluate(`document.querySelector('[data-view="all"]').click()`)
   }
   await call('Emulation.clearDeviceMetricsOverride')
+  await testFieldConsole({evaluate,call,output,game})
   await writeFile(join(output,'console-design-results.json'),JSON.stringify(results,null,2))
   return results
 }

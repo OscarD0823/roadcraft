@@ -14,17 +14,17 @@
       </div>
       <GameBrief :t="t" :paint="companyPaint" />
       <div class="topbar__actions">
-        <button type="button" class="icon-button" :title="t('updatesTitle')" :aria-label="t('updatesTitle')" data-update-open @click="updatesPanel = true">↻</button>
-        <button class="icon-button" :class="{ 'road-mode-active': roadStatus?.status === 'enabled' }" :title="t('freeRoads')" :aria-label="t('freeRoads')" data-road-menu @click="roadPanel = true">🛣</button>
+        <button type="button" class="icon-button" :title="t('updatesTitle')" :aria-label="t('updatesTitle')" data-update-open @click="updatesPanel = true"><WorkspaceGlyph section="refresh" /></button>
+        <button class="icon-button" :class="{ 'road-mode-active': roadStatus?.status === 'enabled' }" :title="t('freeRoads')" :aria-label="t('freeRoads')" data-road-menu @click="roadPanel = true"><WorkspaceGlyph section="road" /></button>
         <label class="language-select" :title="t('language')">
-          <span>🌐</span>
+          <WorkspaceGlyph section="language" />
           <select v-model="locale" @change="changeLocale">
             <option v-for="item in locales" :key="item.value" :value="item.value">
               {{ item.label }}
             </option>
           </select>
         </label>
-        <button class="icon-button" :title="t('changePath')" :disabled="saving || loading" @click="chooseInstall">⚙</button>
+        <button class="icon-button" :title="t('changePath')" :aria-label="t('changePath')" :disabled="saving || loading" @click="chooseInstall"><WorkspaceGlyph section="settings" /></button>
       </div>
     </header>
 
@@ -52,10 +52,10 @@
           <span class="status-dot" />
           <span>{{ scanResult?.installPath || '—' }}</span>
         </div>
-        <button class="tool-button" :title="t('openFolder')" @click="openSourceFolder">📁</button>
-        <button class="tool-button" :title="t('openEditor')" @click="launchEditor">🛠</button>
+        <button class="tool-button" :title="t('openFolder')" :aria-label="t('openFolder')" @click="openSourceFolder"><WorkspaceGlyph section="folder" /></button>
+        <button class="tool-button" :title="t('openEditor')" :aria-label="t('openEditor')" @click="launchEditor"><WorkspaceGlyph section="tools" /></button>
         <button class="button button--primary" :disabled="loading" @click="scan">
-          <span :class="{ spin: loading }">↻</span>
+          <WorkspaceGlyph section="refresh" :class="{ spin: loading }" />
           {{ loading ? t('scanning') : t('scan') }}
         </button>
       </div>
@@ -210,7 +210,7 @@
 
         <div v-for="group in visibleParameterGroups" :key="group.key" class="parameter-group">
           <h3>{{ t(group.key) }}</h3>
-          <article v-for="parameter in group.parameters" :key="parameter.id" class="parameter-card" :data-parameter-id="parameter.id">
+          <article v-for="parameter in group.parameters" :key="parameter.id" class="parameter-card" :data-parameter-id="parameter.id" :data-value-state="draftValues[parameter.id] !== parameter.original ? 'changed' : 'original'">
             <div class="parameter-card__title">
               <strong>{{ t(parameter.labelKey) }}</strong>
               <span>{{ t('original') }}: {{ displayValue(parameter, parameter.original) }}</span>
@@ -246,13 +246,13 @@
             <p v-if="parameter.helpKey" class="parameter-help">{{ t(parameter.helpKey) }}</p>
             <button v-if="parameter.id === 'sandOperatingDistance'" class="button button--secondary sand-map-preset" :disabled="saving" @click="applyRecommendation(parameter.id, 10000)">{{ t('wholeMapSand') }}</button>
             <div v-if="parameter.recommended" class="recommendations">
-              <button :disabled="saving" @click="applyRecommendation(parameter.id, parameter.recommended.low)">
+              <button :disabled="saving" :aria-pressed="draftValues[parameter.id] === parameter.recommended.low" @click="applyRecommendation(parameter.id, parameter.recommended.low)">
                 <small>{{ t('low') }}</small><strong>{{ parameter.recommended.low }}</strong>
               </button>
-              <button :disabled="saving" @click="applyRecommendation(parameter.id, parameter.recommended.medium)">
+              <button :disabled="saving" :aria-pressed="draftValues[parameter.id] === parameter.recommended.medium" @click="applyRecommendation(parameter.id, parameter.recommended.medium)">
                 <small>{{ t('medium') }}</small><strong>{{ parameter.recommended.medium }}</strong>
               </button>
-              <button :disabled="saving" @click="applyRecommendation(parameter.id, parameter.recommended.high)">
+              <button :disabled="saving" :aria-pressed="draftValues[parameter.id] === parameter.recommended.high" @click="applyRecommendation(parameter.id, parameter.recommended.high)">
                 <small>{{ t('high') }}</small><strong>{{ parameter.recommended.high }}</strong>
               </button>
             </div>
@@ -440,6 +440,7 @@ import RoadZonesPanel from './components/road-zones-panel.vue'
 import GameBrief from './components/game-brief.vue'
 import ManualUpdatePanel from './components/manual-update-panel.vue'
 import WorkspaceGlyph from './components/workspace-glyph.vue'
+import { useDecorativeVisibility } from './use-decorative-visibility'
 import { PROJECT_LINKS, type ProjectLink } from '../project-links'
 import { createEntryDraft, hasPendingChanges, rebaseEntryDraft, type EntryDraft } from './entry-drafts'
 
@@ -447,6 +448,7 @@ type View = 'all' | 'truck' | 'trailer' | 'ai' | 'modified' | 'other' | 'save'
 type SaveSection = 'stats' | 'trucks' | 'maps'
 
 const iconUrl = new URL('../assets/app-icon.png', import.meta.url).href
+useDecorativeVisibility()
 const locale = ref('es')
 const appVersion = ref('—')
 const roadPanel = ref(false)

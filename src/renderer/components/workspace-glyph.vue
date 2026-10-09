@@ -8,7 +8,13 @@ const paths: Record<string, string> = {
   ai: 'M6 3a3 3 0 1 0 0 6a3 3 0 1 0 0-6 M18 15a3 3 0 1 0 0 6a3 3 0 1 0 0-6 M6 9v5a4 4 0 0 0 4 4h5 M11 12l3 3-3 3',
   modified: 'M14 5l5 5 M4 20l5-1L21 7l-4-4L5 15z',
   other: 'M12 3l9 5v8l-9 5-9-5V8z M3 8l9 5 9-5 M12 13v8',
-  save: 'M4 3h14l3 3v15H3V3z M7 3v6h10V3 M7 21v-8h10v8'
+  save: 'M4 3h14l3 3v15H3V3z M7 3v6h10V3 M7 21v-8h10v8',
+  refresh: 'M20 7v5h-5 M4 17v-5h5 M5 8a8 8 0 0 1 13-3l2 2 M19 16a8 8 0 0 1-13 3l-2-2',
+  folder: 'M3 20h18V7H11L8 4H3z M3 9h18',
+  tools: 'M14 4a5 5 0 0 0-6 6L3 15a3 3 0 0 0 4 4l5-5a5 5 0 0 0 6-6l-3 3-3-3z',
+  road: 'M8 3L3 21 M16 3l5 18 M12 3v3 M12 10v4 M12 18v3',
+  language: 'M12 2a10 10 0 1 0 0 20a10 10 0 1 0 0-20 M2 12h20 M12 2c-6 5-6 15 0 20 M12 2c6 5 6 15 0 20',
+  settings: 'M10 3h4l1 3 3 1 3-1 2 4-2 2v3l2 2-2 4-3-1-3 1-1 3h-4l-1-3-3-1-3 1-2-4 2-2v-3l-2-2 2-4 3 1 3-1z M12 9a3 3 0 1 0 0 6a3 3 0 1 0 0-6'
 }
 </script>
 <style scoped>svg { display: block; width: 20px; height: 20px; flex: none; }</style>

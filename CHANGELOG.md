@@ -2,12 +2,13 @@
 
 [Portada](README.md) · [Documentación](docs/README.md) · [Última descarga](https://github.com/OscarD0823/roadcraft/releases/latest)
 
-## Versión actual: 0.9.7
+## Versión actual: 0.9.8
 
-Animación de obras renovada: maquinaria con materiales y detalles mecánicos, arena con caída y orugas que invierten su recorrido al volver en reversa. Conserva la secuencia de construcción, la pintura de empresa y las actualizaciones voluntarias.
+Consola de reconstrucción con paneles y controles de acero, tonos de arena y maquinaria, iconos coherentes y mejor lectura de valores. Mantiene el visor lateral, la secuencia de obras y las actualizaciones voluntarias.
 
 ## Notas disponibles
 
+- [0.9.8](docs/releases/0.9.8.md)
 - [0.9.7](docs/releases/0.9.7.md)
 - [0.9.6](docs/releases/0.9.6.md) — preparación sin instalador en GitHub.
 - [0.9.5](docs/releases/0.9.5.md)

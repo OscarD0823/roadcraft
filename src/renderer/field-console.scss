@@ -1,0 +1,63 @@
+// Reconstruction console: sand, steel and green field machinery. The depth is
+// static and lightweight; no photograph overlay or global animated reflections.
+.app-frame {
+  --field-accent: #edc482;
+  --field-edge: #51615e;
+  --field-plate: linear-gradient(150deg, #243631, #11252c 70%);
+  --field-relief: inset 0 1px #f5e8c815, inset 0 -1px #0005, 0 5px 16px #0002;
+  --field-radius: 5px 13px 5px 13px;
+
+  .topbar { background: linear-gradient(180deg, #1b2a2d, #091219); border-bottom: 1px solid #535f57; box-shadow: 0 2px 8px #0003; }
+  .workspace-nav { background: linear-gradient(110deg, #1c302d, #0b171e 80%); }
+  .nav-button { border: 1px solid transparent; border-radius: var(--field-radius); transition: background .16s, border-color .16s, color .16s; }
+  .nav-button__icon { display: grid; place-items: center; width: 28px; height: 28px; flex: none; border: 1px solid #6a81755c; border-radius: 4px 8px 4px 8px; background: #0a1e23; color: #bcd0c7; }
+  .nav-button--active { color: #ffe5b8; border-color: #a2906b66; background: linear-gradient(100deg, #4b4532, #26352f 75%); box-shadow: inset 3px 0 var(--field-accent), var(--field-relief); }
+  .nav-button--active .nav-button__icon { color: var(--field-accent); border-color: #c2a778; }
+  .nav-button:focus-visible { outline: 2px solid var(--field-accent); outline-offset: -2px; }
+  .nav-button small { font-variant-numeric: tabular-nums; border: 1px solid #a9bd9d24; border-radius: 4px; }
+  .toolbar { background: linear-gradient(110deg, #223831, #101e27 65%); }
+  .result-label { padding: 4px 8px; border: 1px solid #5d716b; border-radius: 4px; background: #0b1e22; font-size: 11px; font-variant-numeric: tabular-nums; }
+  .button, .icon-button, .tool-button, .language-select { border-radius: var(--field-radius); box-shadow: var(--field-relief); }
+  .button--primary { color: #fff0d4; border: 1px solid #ab986b; background: linear-gradient(150deg, #796241, #4d4430); text-shadow: 0 1px #0005; }
+  .button--primary:not(:disabled):hover { color: #fff5e1; border-color: var(--field-accent); background: linear-gradient(150deg, #967b4f, #665433); }
+  .button:not(:disabled):active, .icon-button:not(:disabled):active { box-shadow: inset 0 2px 5px #0006; }
+  .search-box, .value-row input, .value-row select, .stat-form-grid input { box-shadow: inset 0 2px 5px #0003; }
+  .content-card { border-color: var(--field-edge); border-radius: var(--field-radius); background: var(--field-plate); box-shadow: var(--field-relief); transition: border-color .16s, box-shadow .16s; }
+  .content-card:hover { transform: none; border-color: var(--field-accent); box-shadow: inset 0 1px #f5e8c830, 0 6px 18px #0004; }
+  .content-card__media { border-bottom: 1px solid #4d6764; background: radial-gradient(ellipse at 50% 75%, #78987742, transparent 70%), linear-gradient(145deg, #2d4740, #162a31); }
+  .content-card__body strong { font-weight: 650; font-size: 13px; }
+  .content-card__body span { color: #e6c693; font-size: 10px; letter-spacing: .035em; }
+  .content-card__body small { color: #b8c9c7; }
+  .kind-badge { color: #e5efea; background: #0c1f23ee; border-color: #8a9d8566; border-radius: 3px 7px 3px 7px; }
+  .vehicle-preview, .inspector-settings, .save-slots, .save-editor { border-radius: var(--field-radius); border-color: var(--field-edge); background: var(--field-plate); box-shadow: var(--field-relief); }
+  .inspector__meta span { border: 1px solid #65807666; border-radius: 4px; }
+  .parameter-tabs { padding: 8px; background: #0d2026; }
+  .parameter-tabs button { min-height: 34px; border-radius: 4px 9px 4px 9px; box-shadow: inset 0 1px #e0efdf12; }
+  .parameter-tabs button.active { color: #ffe5b8; background: linear-gradient(145deg, #4a4734, #253b35); border-color: #b6a076; box-shadow: inset 0 -2px var(--field-accent); }
+  .parameter-tabs small { font-variant-numeric: tabular-nums; }
+  .parameter-group h3 { font-size: 11px; color: #c6d9cf; padding-bottom: 7px; border-bottom: 1px solid #52736980; }
+  .parameter-card { border-color: #4e6963; border-radius: var(--field-radius); background: linear-gradient(140deg, #1b3536, #0e252c); box-shadow: inset 0 1px #d9f0d70c; }
+  .parameter-card[data-value-state='changed'] { border-inline-start: 3px solid var(--field-accent); }
+  .parameter-card__title strong { color: #e8f2ed; font-size: 13px; font-weight: 650; }
+  .parameter-card__title span { color: #c1d2ca; background: #0b2026; padding: 5px 7px; border: 1px solid #49605c; border-radius: 4px; font-size: 11px; font-variant-numeric: tabular-nums; }
+  .value-row label > span { color: #bbd0ca; font-size: 11px; }
+  .value-row input, .value-row select { height: 38px; font-size: 13px; border-radius: 4px 8px 4px 8px; font-variant-numeric: tabular-nums; }
+  .recommendations { gap: 6px; }
+  .recommendations button { align-items: center; min-height: 44px; padding: 7px 3px; border-radius: 4px 8px 4px 8px; background: linear-gradient(160deg, #29433e, #152e31); border-color: #617970; color: #d0ded4; box-shadow: var(--field-relief); }
+  .recommendations small { font-size: 10px; }
+  .recommendations strong { font-size: 12px; font-variant-numeric: tabular-nums; }
+  .recommendations button[aria-pressed='true'] { color: #fff0cb; background: #514a31; border-color: #d5bc83; box-shadow: inset 0 -2px #edc482; }
+  .range-label { font-size: 10px; color: #b4c9bf; }
+  .safe-notice, .access-notice, .variant-notice, .draft-notice { border-radius: var(--field-radius); box-shadow: inset 0 1px #e0f4dd0c; }
+  .safe-notice span { font-size: 11px; line-height: 1.5; }
+  .inspector__footer, .save-editor__footer { background: linear-gradient(180deg, #1d322e, #102228); box-shadow: 0 -3px 8px #0003; }
+  button:disabled { cursor: default; box-shadow: none; }
+  button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--field-accent); outline-offset: 2px; }
+}
+html[data-app-hidden='true'] .startup-journey,
+html[data-app-hidden='true'] .startup-journey * { animation-play-state: paused !important; }
+
+@media (max-width: 760px) {
+  .app-frame .nav-button__icon { width: 22px; height: 22px; }
+  .app-frame .result-label { border: 0; padding: 0; background: transparent; }
+}
