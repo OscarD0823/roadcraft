@@ -4,6 +4,8 @@ import { join } from 'node:path'
 
 // Run against our isolated Electron renderer, never the user's open window.
 export async function testJourney({ evaluate, call, output }) {
+  // Windows runners may default to reduced motion; exercise both modes explicitly.
+  await call('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'no-preference'}]})
   const duration = await evaluate(`document.querySelector('.workspace-journey .machine').getAnimations()[0].effect.getComputedTiming().duration`)
   assert.equal(duration, 54000)
   assert.equal(await evaluate(`document.querySelectorAll('.workspace-journey .grade-clearance').length`), 2, 'Both excavator passes must remove sand mounds')
@@ -87,7 +89,7 @@ export async function testJourney({ evaluate, call, output }) {
     assert.equal(await evaluate(`document.querySelector('.workspace-journey svg').getAnimations({subtree:true}).length`), 0, 'Reduced motion must disable all animations')
     return animation
   } finally {
-    await call('Emulation.setEmulatedMedia', { features: [] })
+    await call('Emulation.setEmulatedMedia', { features: [{name:'prefers-reduced-motion',value:'no-preference'}] })
     await evaluate(`(()=>{const n=document.querySelector('.workspace-journey');${originalStyle === null ? 'n.removeAttribute("style")' : `n.setAttribute('style',${JSON.stringify(originalStyle)})`};n.querySelector('svg').getAnimations({subtree:true}).forEach(a=>a.play())})()`)
   }
 }

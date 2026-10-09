@@ -104,6 +104,8 @@ try {
   }
   const counts=await evaluate('({cards:document.querySelectorAll(".content-card").length,animation:document.querySelectorAll(".workspace-journey [data-machine]").length===7})')
   assert.ok(counts.animation)
+  // Reproduce Windows hosts that enter the test with animations disabled.
+  await call('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'reduce'}]})
   const animation=await testJourney({evaluate,call,output})
   if(process.env.ROADCRAFT_JOURNEY_ONLY==='1'){
     await writeFile(join(output,'journey-results.json'),JSON.stringify({nativeWindow,counts,animation,errors},null,2))
