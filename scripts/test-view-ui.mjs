@@ -63,7 +63,8 @@ try {
   // An occluded native window otherwise suspends its animation frames during QA.
   await call('Emulation.setFocusEmulationEnabled',{enabled:true})
   await call('Page.bringToFront')
-  await wait('document.querySelectorAll(".content-card").length > 80')
+  if(process.env.ROADCRAFT_ICONS_ONLY==='1') await wait('document.querySelector(".brand__icon")?.naturalWidth > 0')
+  else await wait('document.querySelectorAll(".content-card").length > 80')
   if(companyFixture)await wait(`document.querySelector('.workspace-journey')?.dataset.paint==='customization_material_28'`)
   const {stdout}=await promisify(execFile)('powershell.exe',['-NoProfile','-NonInteractive','-Command',`Get-Process -Id ${child.pid} | ForEach-Object { [pscustomobject]@{Visible=($_.MainWindowHandle -ne 0);Title=$_.MainWindowTitle} } | ConvertTo-Json -Compress`],{windowsHide:true})
   const nativeWindow=JSON.parse(stdout.trim())
@@ -73,6 +74,11 @@ try {
   const projectLinks=await testProjectLinks({evaluate,call,output,repository:'roadcraft'})
   const consoleDesign=await testConsoleDesign({evaluate,call,output,game:'roadcraft'})
   await testOptionalUpdates({evaluate,call,output})
+  if(process.env.ROADCRAFT_ICONS_ONLY==='1'){
+    const catalog=await evaluate('({cards:document.querySelectorAll(".content-card").length,error:document.querySelector(".toast--error")?.textContent})')
+    await writeFile(join(output,'icons-ui-results.json'),JSON.stringify({nativeWindow,projectLinks,catalog,errors},null,2))
+    assert.deepEqual(errors,[]);console.log(JSON.stringify({nativeWindow,catalog,iconAndLayoutsPassed:true,errors},null,2));return
+  }
   if(process.env.ROADCRAFT_ROADS_ERROR_ONLY==='1'){
     await evaluate(`document.querySelector('[data-road-menu]').focus();document.querySelector('[data-road-menu]').click()`)
     await wait(`document.querySelector('.road-dialog')?.open && !document.querySelector('[data-road-enable]')?.disabled`)

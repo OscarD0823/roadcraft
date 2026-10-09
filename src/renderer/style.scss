@@ -63,8 +63,9 @@ button { cursor: pointer; }
   &__icon {
     width: 40px;
     height: 40px;
-    border-radius: 11px;
-    box-shadow: 0 8px 18px rgba(249, 115, 22, 0.2);
+    flex: 0 0 auto;
+    object-fit: contain;
+    filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.3));
   }
 
   div { display: flex; flex-direction: column; }

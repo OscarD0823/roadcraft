@@ -1,7 +1,7 @@
 {
   "name": "roadcraft-studio",
   "productName": "RoadCraft Studio",
-  "version": "0.9.4",
+  "version": "0.9.5",
   "description": "Editor visual y seguro para vehículos, tráilers, convoyes logísticos y partidas de RoadCraft.",
   "main": ".vite/build/index.js",
   "author": {
@@ -16,6 +16,8 @@
     "forge": "./forge.config.mjs"
   },
   "scripts": {
+    "icons:generate": "electron scripts/generate-icon.cjs",
+    "test:icons": "electron scripts/generate-icon.cjs --check",
     "start": "electron-forge start",
     "check": "tsc --noEmit && vue-tsc --noEmit",
     "test": "tsx scripts/test-zip-package.ts && tsx scripts/test-save-game.ts && tsx scripts/test-images.ts && esbuild scripts/test-work-equipment.ts --bundle --platform=node --format=cjs --external:electron --outfile=.vite/test-work-equipment.cjs && electron .vite/test-work-equipment.cjs",

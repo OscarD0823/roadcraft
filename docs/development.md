@@ -48,6 +48,8 @@ El comprobador de documentación valida enlaces locales, imágenes e índices de
 
 ## Compilar y publicar
 
+El icono procede de un maestro transparente propio, no de archivos del juego. `npm run icons:generate` exporta PNG/ICO y `npm run test:icons` valida los recursos; no es necesario Python ni una clave de API. Consulta el [diseño y prompt](icon-artwork.md).
+
 ```powershell
 npm run make
 ```

@@ -2,12 +2,13 @@
 
 [Portada](README.md) · [Documentación](docs/README.md) · [Última descarga](https://github.com/OscarD0823/roadcraft/releases/latest)
 
-## Versión actual: 0.9.4
+## Versión actual: 0.9.5
 
-Actualizaciones voluntarias desde un panel propio. Buscar consulta solo los datos de GitHub; descargar abre el navegador, sin instalar ni cerrar el editor automáticamente. Mantiene las ediciones y borradores compartidos.
+Nuevo icono de maquinaria de orugas con el emblema integrado en la pala, coherente en interfaz e instalador. Conserva las actualizaciones voluntarias y los borradores compartidos.
 
 ## Notas disponibles
 
+- [0.9.5](docs/releases/0.9.5.md)
 - [0.9.4](docs/releases/0.9.4.md)
 - [0.9.3](docs/releases/0.9.3.md)
 - [0.9.2](docs/releases/0.9.2.md)

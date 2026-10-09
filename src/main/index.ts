@@ -88,7 +88,7 @@ async function createWindow() {
     show: false,
     backgroundColor: '#0b1220',
     title: 'RoadCraft Studio',
-    icon: join(app.getAppPath(), 'src', 'assets', 'app-icon.ico'),
+    icon: join(currentDir, 'app-icon.ico'),
     webPreferences: {
       preload: join(currentDir, 'preload.cjs'),
       contextIsolation: true,

@@ -1,11 +1,13 @@
 import assert from 'node:assert/strict'
 import { writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import { testVehicleIcon } from './test-vehicle-icon-ui.mjs'
 
 export async function testConsoleDesign({ evaluate, call, output, game = 'snowrunner' }) {
+  await testVehicleIcon({ evaluate, call, output, game })
   const results = [], road = game === 'roadcraft'
   const navSelector = road ? '.primary-nav' : '.workspace-navigation'
-  const contentSelector = road ? '.content-grid' : '.list'
+  const contentSelector = road ? '.content-grid, .center-state' : '.list'
   await call('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'no-preference' }] })
   for (const width of [600, 960, 1366]) {
     await call('Emulation.setDeviceMetricsOverride', { width, height: 700, deviceScaleFactor: 1, mobile: false })

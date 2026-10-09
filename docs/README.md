@@ -3,6 +3,7 @@
 - [Volver a la portada](../README.md)
 - [Guía de uso](user-guide.md): instalación, bibliotecas, edición, copias y límites.
 - [Desarrollo](development.md): código, pruebas, compilación y publicación.
+- [Identidad del icono](icon-artwork.md): vehículo, emblema integrado, recursos y prompt.
 - [Investigación](vehicle-research.md): clasificación de convoyes, modelos y fuentes.
 - [Historial de versiones](../CHANGELOG.md): notas agrupadas en `releases/`.
 - [Archivo histórico](archive/README.md): decisiones de versiones anteriores.
