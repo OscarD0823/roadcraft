@@ -66,6 +66,9 @@ jobs:
       - name: Validar iconos incrustados y recurso de ventana
         run: node scripts/test-packaged-icons.mjs
 
+      - name: Validar animación y fases de construcción
+        run: npm run test:journey
+
       - name: Publicar archivos
         uses: softprops/action-gh-release@v3
         with:

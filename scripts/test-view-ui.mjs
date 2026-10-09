@@ -63,7 +63,8 @@ try {
   // An occluded native window otherwise suspends its animation frames during QA.
   await call('Emulation.setFocusEmulationEnabled',{enabled:true})
   await call('Page.bringToFront')
-  if(process.env.ROADCRAFT_ICONS_ONLY==='1') await wait('document.querySelector(".brand__icon")?.naturalWidth > 0')
+  // The animation is testable in CI without a game; opt into a real catalogue separately.
+  if(process.env.ROADCRAFT_ICONS_ONLY==='1' || (process.env.ROADCRAFT_JOURNEY_ONLY==='1' && process.env.ROADCRAFT_WAIT_CATALOG!=='1')) await wait('document.querySelector(".brand__icon")?.naturalWidth > 0')
   else await wait('document.querySelectorAll(".content-card").length > 80')
   if(companyFixture)await wait(`document.querySelector('.workspace-journey')?.dataset.paint==='customization_material_28'`)
   const {stdout}=await promisify(execFile)('powershell.exe',['-NoProfile','-NonInteractive','-Command',`Get-Process -Id ${child.pid} | ForEach-Object { [pscustomobject]@{Visible=($_.MainWindowHandle -ne 0);Title=$_.MainWindowTitle} } | ConvertTo-Json -Compress`],{windowsHide:true})
