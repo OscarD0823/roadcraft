@@ -30,6 +30,9 @@ jobs:
       - name: Validar destinos de enlaces del proyecto
         run: npm run test:links
 
+      - name: Validar actualizaciones opcionales
+        run: npm run test:updates
+
       - name: Validar límites del lector TPL
         run: npm run test:tpl
 

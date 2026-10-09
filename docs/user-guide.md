@@ -11,6 +11,12 @@
 
 El catálogo lee las clases `.cls` de `root/paks/client/default/default_other.pak` y fuentes oficiales `.bro` compatibles. No se garantiza descubrir cualquier formato o ubicación de mods.
 
+## Actualizaciones opcionales
+
+Abre **Actualizaciones** con el botón ↻ de la cabecera y pulsa **Buscar actualizaciones** cuando quieras. No se consulta GitHub ni se descarga nada automáticamente.
+
+Si hay una versión estable nueva, puedes **Descargar instalador**, leer la versión en GitHub o **Seguir con esta versión**. La descarga abre el navegador: no ejecuta el instalador, cierra el editor ni altera los borradores. Guarda tus cambios y cierra el editor antes de ejecutar el instalador descargado.
+
 ## Bibliotecas
 
 - **Vehículos**: configuraciones de la flota de jugador; disponibilidad y compra dependen también de la partida, objetivos, mapa y DLC.

@@ -14,6 +14,7 @@
       </div>
       <GameBrief :t="t" :paint="companyPaint" />
       <div class="topbar__actions">
+        <button type="button" class="icon-button" :title="t('updatesTitle')" :aria-label="t('updatesTitle')" data-update-open @click="updatesPanel = true">↻</button>
         <button class="icon-button" :class="{ 'road-mode-active': roadStatus?.status === 'enabled' }" :title="t('freeRoads')" :aria-label="t('freeRoads')" data-road-menu @click="roadPanel = true">🛣</button>
         <label class="language-select" :title="t('language')">
           <span>🌐</span>
@@ -421,6 +422,7 @@
     </main>
 
     <RoadZonesPanel v-model:open="roadPanel" :t="t" :checked-at="scanResult?.scannedAt" @status="roadStatus = $event" @error="showError" />
+    <ManualUpdatePanel v-model:open="updatesPanel" :current-version="appVersion" :t="t" :api="updatesApi" />
     <div v-if="toast" class="toast" :class="`toast--${toast.type}`">
       <strong>{{ toast.type === 'error' ? t('error') : '✓' }}</strong>
       <span>{{ toast.message }}</span>
@@ -436,6 +438,7 @@ import { locales, translate } from './i18n'
 import VehicleDrive from './components/vehicle-drive.vue'
 import RoadZonesPanel from './components/road-zones-panel.vue'
 import GameBrief from './components/game-brief.vue'
+import ManualUpdatePanel from './components/manual-update-panel.vue'
 import WorkspaceGlyph from './components/workspace-glyph.vue'
 import { PROJECT_LINKS, type ProjectLink } from '../project-links'
 import { createEntryDraft, hasPendingChanges, rebaseEntryDraft, type EntryDraft } from './entry-drafts'
@@ -447,6 +450,12 @@ const iconUrl = new URL('../assets/app-icon.png', import.meta.url).href
 const locale = ref('es')
 const appVersion = ref('—')
 const roadPanel = ref(false)
+const updatesPanel = ref(false)
+const updatesApi = {
+  check: () => window.roadcraft.checkUpdates(),
+  download: () => window.roadcraft.openUpdateDownload(),
+  release: () => window.roadcraft.openUpdateRelease()
+}
 const roadStatus = ref<RoadZoneStatus>()
 const view = ref<View>('all')
 const search = ref('')

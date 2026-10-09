@@ -198,6 +198,9 @@ export interface VehiclePreviewAsset {
 }
 
 export interface RoadCraftApi {
+  checkUpdates(): Promise<import('./manual-updates').UpdateInfo>
+  openUpdateDownload(): Promise<void>
+  openUpdateRelease(): Promise<void>
   getRoadZoneStatus(): Promise<RoadZoneStatus>
   setFreeRoads(enabled: boolean): Promise<OperationResult>
   openProjectLink(link: import('./project-links').ProjectLink): Promise<void>

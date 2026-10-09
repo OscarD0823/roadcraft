@@ -11,6 +11,7 @@ import { testProjectLinks } from './project-links-ui.mjs'
 import { testLinkedWork } from './test-linked-work-ui.mjs'
 import { testRoadZonesUI } from './test-road-zones-ui.mjs'
 import { testConsoleDesign } from './test-console-design.mjs'
+import { testOptionalUpdates } from './test-optional-updates-ui.mjs'
 import { testEntryDrafts } from './test-entry-drafts-ui.mjs'
 const root = dirname(dirname(fileURLToPath(import.meta.url))), output = process.env.ROADCRAFT_QA_OUTPUT ?? join(root, 'out', 'qa-ui'), port = 9335
 await mkdir(output, { recursive: true })
@@ -71,6 +72,7 @@ try {
   assert.equal((await evaluate('window.roadcraft.getSettings()')).version,JSON.parse(await readFile(join(root,'package.json'),'utf8')).version,'Running app is not the version being distributed')
   const projectLinks=await testProjectLinks({evaluate,call,output,repository:'roadcraft'})
   const consoleDesign=await testConsoleDesign({evaluate,call,output,game:'roadcraft'})
+  await testOptionalUpdates({evaluate,call,output})
   if(process.env.ROADCRAFT_ROADS_ERROR_ONLY==='1'){
     await evaluate(`document.querySelector('[data-road-menu]').focus();document.querySelector('[data-road-menu]').click()`)
     await wait(`document.querySelector('.road-dialog')?.open && !document.querySelector('[data-road-enable]')?.disabled`)

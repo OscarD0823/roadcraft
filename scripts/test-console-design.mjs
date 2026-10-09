@@ -9,7 +9,7 @@ export async function testConsoleDesign({ evaluate, call, output, game = 'snowru
   await call('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'no-preference' }] })
   for (const width of [600, 960, 1366]) {
     await call('Emulation.setDeviceMetricsOverride', { width, height: 700, deviceScaleFactor: 1, mobile: false })
-    await evaluate('document.fonts.ready.then(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))))')
+    await evaluate('document.fonts.ready.then(()=>new Promise(r=>{const timer=setTimeout(r,150);requestAnimationFrame(()=>requestAnimationFrame(()=>{clearTimeout(timer);r()}))}))')
     const state = await evaluate(`(()=>{
       const nav=document.querySelector(${JSON.stringify(navSelector)}),content=document.querySelector(${JSON.stringify(contentSelector)});
       const header=document.querySelector('.topbar'),identity=header.querySelector('[data-workspace-identity]'),scene=identity.querySelector('.startup-journey');
@@ -48,7 +48,7 @@ export async function testConsoleDesign({ evaluate, call, output, game = 'snowru
   await call('Emulation.setEmulatedMedia',{features:[]})
   if (road) {
     await evaluate(`document.querySelector('[data-view="save"]').click()`)
-    await evaluate('new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))')
+    await evaluate('new Promise(r=>{const timer=setTimeout(r,150);requestAnimationFrame(()=>requestAnimationFrame(()=>{clearTimeout(timer);r()}))})')
     for (const width of [600,960,1366]) {
       await call('Emulation.setDeviceMetricsOverride',{width,height:700,deviceScaleFactor:1,mobile:false})
       const layout=await evaluate(`(()=>{const r=document.querySelector('.save-shell').getBoundingClientRect();return {right:r.right,bottom:r.bottom,height:r.height,overflow:document.documentElement.scrollWidth>innerWidth}})()`)

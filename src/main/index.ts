@@ -1,7 +1,7 @@
 import { app, BrowserWindow, ipcMain, shell } from 'electron'
 import { projectLinkUrl } from '../project-links'
+import { ManualUpdates } from '../manual-updates'
 import squirrelStartup from 'electron-squirrel-startup'
-import { UpdateSourceType, updateElectronApp } from 'update-electron-app'
 import { dirname, join, resolve } from 'node:path'
 import { mkdirSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
@@ -40,7 +40,6 @@ if (squirrelStartup) {
       await service.init()
       registerHandlers(service)
       mainWindow = await createWindow()
-      initUpdater()
 
       app.on('activate', async () => {
         if (BrowserWindow.getAllWindows().length === 0) {
@@ -55,6 +54,10 @@ if (squirrelStartup) {
 }
 
 function registerHandlers(service: RoadCraftService) {
+  const updates = new ManualUpdates('roadcraft', app.getVersion())
+  ipcMain.handle('roadcraft:check-updates', () => updates.check())
+  ipcMain.handle('roadcraft:open-update-download', () => shell.openExternal(updates.downloadUrl()))
+  ipcMain.handle('roadcraft:open-update-release', () => shell.openExternal(updates.releaseUrl()))
   ipcMain.handle('roadcraft:road-zone-status', () => service.getRoadZoneStatus())
   ipcMain.handle('roadcraft:free-roads', (_event, enabled: boolean) => service.setFreeRoads(enabled))
   ipcMain.handle('roadcraft:open-project-link', (_event, link: unknown) => shell.openExternal(projectLinkUrl(link)))
@@ -105,18 +108,4 @@ async function createWindow() {
   }
 
   return window
-}
-
-function initUpdater() {
-  if (!app.isPackaged) return
-
-  updateElectronApp({
-    updateSource: {
-      type: UpdateSourceType.ElectronPublicUpdateService,
-      repo: 'OscarD0823/roadcraft'
-    },
-    updateInterval: '30 minutes',
-    logger: console,
-    notifyUser: true
-  })
 }

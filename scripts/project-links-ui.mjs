@@ -8,7 +8,7 @@ export async function testProjectLinks({ evaluate, call, output, repository }) {
   try {
     for (const width of [600,960,1366]) {
       await call('Emulation.setDeviceMetricsOverride',{width,height:640,deviceScaleFactor:1,mobile:false})
-      await evaluate('document.fonts.ready.then(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))))')
+      await evaluate('document.fonts.ready.then(()=>new Promise(resolve=>{const timer=setTimeout(resolve,150);requestAnimationFrame(()=>requestAnimationFrame(()=>{clearTimeout(timer);resolve()}))}))')
       const state=await evaluate(`(()=>{
         const links=[...document.querySelectorAll('.topbar [data-project-link]')];
         const menu=document.querySelector('.topbar .menu'),mb=menu?.getBoundingClientRect();

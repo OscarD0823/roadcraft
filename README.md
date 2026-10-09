@@ -17,6 +17,8 @@
 
 En la [última versión publicada](https://github.com/OscarD0823/roadcraft/releases/latest), abre **Assets** y descarga el archivo que termina en **Setup.exe**. Está pensado para Windows x64 con RoadCraft instalado; no necesitas Node.js para usarlo. Las actualizaciones se distribuyen por GitHub, no por Microsoft Store.
 
+**Actualizaciones opcionales:** el botón ↻ permite buscar una versión nueva, descargarla en el navegador o seguir con la actual. No hay descargas ni instalaciones automáticas.
+
 ## Qué puedes hacer
 
 - Explorar **vehículos, tráilers y convoyes de Logística** en secciones separadas; buscar contenido nuevo de la instalación y fuentes compatibles de mods.

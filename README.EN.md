@@ -17,6 +17,8 @@
 
 Open **Assets** on the [latest release](https://github.com/OscarD0823/roadcraft/releases/latest) and download the **Setup.exe** installer. Requires Windows x64 and a local RoadCraft installation; Node.js is only needed for development. Updates are distributed through GitHub, not Microsoft Store.
 
+**Optional updates:** use ↻ to check for a new release, download it in your browser or keep the current version. Nothing is downloaded or installed automatically.
+
 ## Features
 
 - Separate vehicle, trailer and Logistics libraries, with rescanning for installed content and supported mod sources.
